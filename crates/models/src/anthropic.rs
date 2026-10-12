@@ -41,15 +41,18 @@ impl Agent for AnthropicAgent {
         feedback: Option<&ActionError>,
     ) -> Result<Action, ModelError> {
         let obs_json = serde_json::to_string(obs).map_err(|e| ModelError::Parse(e.to_string()))?;
-        let body = json!({
+        let mut body = json!({
             "model": self.model,
             "max_tokens": 1024,
-            "temperature": self.temperature,
             "system": ACTION_SCHEMA_DOC,
             "messages": [
                 {"role": "user", "content": build_user_prompt(&obs_json, feedback)},
             ]
         });
+        // claude-5.x rejects `temperature` entirely; only send it when non-zero.
+        if self.temperature > 0.0 {
+            body["temperature"] = json!(self.temperature);
+        }
 
         let resp = self
             .client
