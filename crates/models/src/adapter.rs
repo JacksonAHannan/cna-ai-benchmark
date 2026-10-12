@@ -96,3 +96,43 @@ pub fn build_user_prompt(obs_json: &str, feedback: Option<&ActionError>) -> Stri
     }
     s
 }
+
+/// Parse a model's action JSON, tolerating wrappers (markdown fences, `<term>`
+/// tags, surrounding prose) by falling back to the first `{...}` object.
+pub fn parse_action(content: &str) -> Result<Action, ModelError> {
+    if let Ok(action) = serde_json::from_str(content) {
+        return Ok(action);
+    }
+    if let (Some(start), Some(end)) = (content.find('{'), content.rfind('}')) {
+        if end > start {
+            if let Ok(action) = serde_json::from_str(&content[start..=end]) {
+                return Ok(action);
+            }
+        }
+    }
+    let snippet: String = content.chars().take(120).collect();
+    Err(ModelError::Parse(format!("no valid JSON in: {snippet}…")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_action;
+    use cna_engine::Action;
+
+    #[test]
+    fn parses_clean_json() {
+        assert!(matches!(parse_action("{\"type\":\"pass\"}").unwrap(), Action::Pass));
+    }
+
+    #[test]
+    fn parses_markdown_fenced_json() {
+        let content = "```json\n{\"type\":\"pass\"}\n```";
+        assert!(matches!(parse_action(content).unwrap(), Action::Pass));
+    }
+
+    #[test]
+    fn parses_term_wrapped_json() {
+        let content = "<term>{\"type\":\"endTurn\"}</termml>";
+        assert!(matches!(parse_action(content).unwrap(), Action::EndTurn));
+    }
+}

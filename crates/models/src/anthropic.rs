@@ -43,7 +43,7 @@ impl Agent for AnthropicAgent {
         let obs_json = serde_json::to_string(obs).map_err(|e| ModelError::Parse(e.to_string()))?;
         let mut body = json!({
             "model": self.model,
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "system": ACTION_SCHEMA_DOC,
             "messages": [
                 {"role": "user", "content": build_user_prompt(&obs_json, feedback)},
@@ -74,8 +74,7 @@ impl Agent for AnthropicAgent {
             serde_json::from_str(&text).map_err(|e| ModelError::Parse(e.to_string()))?;
         let content = extract_text(&v)
             .ok_or_else(|| ModelError::Parse("no assistant text content".to_string()))?;
-        let action: Action = serde_json::from_str(&content)
-            .map_err(|e| ModelError::Parse(format!("{e} (content: {content})")))?;
+        let action: Action = crate::adapter::parse_action(&content)?;
         Ok(action)
     }
 }

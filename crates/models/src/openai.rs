@@ -80,8 +80,7 @@ impl Agent for OpenAiAgent {
         let content = v["choices"][0]["message"]["content"]
             .as_str()
             .ok_or_else(|| ModelError::Parse("no assistant content".to_string()))?;
-        let action: Action = serde_json::from_str(content)
-            .map_err(|e| ModelError::Parse(format!("{e} (content: {content})")))?;
+        let action: Action = crate::adapter::parse_action(content)?;
         Ok(action)
     }
 }

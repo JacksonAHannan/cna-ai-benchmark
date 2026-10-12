@@ -31,8 +31,17 @@ struct GameResult {
     events: Vec<Event>,
 }
 
-async fn run_game(allied: Arc<dyn Agent>, axis: Arc<dyn Agent>, seed: u64) -> GameResult {
-    let state = GameState::new(default_scenario(), seed);
+async fn run_game(
+    allied: Arc<dyn Agent>,
+    axis: Arc<dyn Agent>,
+    seed: u64,
+    turns: Option<u32>,
+) -> GameResult {
+    let mut scenario = default_scenario();
+    if let Some(t) = turns {
+        scenario.turn_horizon = t;
+    }
+    let state = GameState::new(scenario, seed);
     let mut events = Vec::new();
     let stats = run_streaming(state, allied, axis, |ev, _st| events.extend(ev)).await;
     GameResult {
@@ -61,10 +70,11 @@ fn outcome_score(winner: Option<Side>) -> (f64, f64) {
     }
 }
 
-fn parse_args() -> (usize, u64, Option<PathBuf>) {
+fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>) {
     let mut games = DEFAULT_GAMES_PER_PAIR;
     let mut seed = DEFAULT_SEED;
     let mut config: Option<PathBuf> = None;
+    let mut turns: Option<u32> = None;
 
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -82,10 +92,13 @@ fn parse_args() -> (usize, u64, Option<PathBuf>) {
             "--config" => {
                 config = args.next().map(PathBuf::from);
             }
+            "--turns" => {
+                turns = args.next().and_then(|v| v.parse().ok());
+            }
             _ => {}
         }
     }
-    (games, seed, config)
+    (games, seed, config, turns)
 }
 
 fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
@@ -105,7 +118,7 @@ fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
 
 #[tokio::main]
 async fn main() {
-    let (games_per_pair, seed_base, config) = parse_args();
+    let (games_per_pair, seed_base, config, turns) = parse_args();
     let players = load_agents(config);
 
     if players.len() < 2 {
@@ -134,7 +147,7 @@ async fn main() {
             let an = players[ai].name().to_string();
             let bn = players[bi].name().to_string();
             tokio::spawn(async move {
-                let r = run_game(allied, axis, s).await;
+                let r = run_game(allied, axis, s, turns).await;
                 (s, an, bn, r)
             })
         })
