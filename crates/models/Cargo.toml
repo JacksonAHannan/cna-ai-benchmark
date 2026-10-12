@@ -1,0 +1,15 @@
+[package]
+name = "cna-models"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cna-engine = { path = "../engine" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+parking_lot.workspace = true
+reqwest.workspace = true
+tokio.workspace = true

@@ -1,0 +1,17 @@
+# Rust
+/target
+
+# Node / web
+web/node_modules
+web/dist
+web/.vite
+
+# Local artifacts
+*.log
+/run/
+/games/
+
+# Env / secrets
+.env
+.env.*
+!.env.example

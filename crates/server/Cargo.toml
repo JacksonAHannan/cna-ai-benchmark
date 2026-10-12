@@ -1,0 +1,16 @@
+[package]
+name = "cna-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+cna-engine = { path = "../engine" }
+cna-models = { path = "../models" }
+serde.workspace = true
+serde_json.workspace = true
+parking_lot.workspace = true
+tokio.workspace = true
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true

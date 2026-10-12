@@ -1,0 +1,21 @@
+[
+  {
+    "provider": "OpenAi",
+    "name": "gpt-4o",
+    "model": "gpt-4o",
+    "temperature": 0.0
+  },
+  {
+    "provider": "Anthropic",
+    "name": "claude-sonnet",
+    "model": "claude-3-5-sonnet-latest",
+    "temperature": 0.0
+  },
+  {
+    "provider": "OpenAiCompatible",
+    "name": "local-llama",
+    "model": "llama-3.1-8b-instruct",
+    "base_url": "http://127.0.0.1:11434/v1",
+    "temperature": 0.0
+  }
+]

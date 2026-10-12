@@ -1,0 +1,84 @@
+//! OpenAI (and any OpenAI-compatible) chat-completions agent.
+
+use crate::adapter::{build_user_prompt, Agent, AgentConfig, ModelError, ACTION_SCHEMA_DOC};
+use async_trait::async_trait;
+use cna_engine::{Action, ActionError, Observation};
+use serde_json::json;
+
+pub struct OpenAiAgent {
+    name: String,
+    model: String,
+    base_url: String,
+    api_key: String,
+    temperature: f32,
+    client: reqwest::Client,
+}
+
+impl OpenAiAgent {
+    pub fn new(config: &AgentConfig) -> Self {
+        let base_url = config
+            .base_url
+            .clone()
+            .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+        let api_key = config
+            .api_key
+            .clone()
+            .unwrap_or_else(|| std::env::var("OPENAI_API_KEY").unwrap_or_default());
+        OpenAiAgent {
+            name: config.name.clone(),
+            model: config.model.clone(),
+            base_url,
+            api_key,
+            temperature: config.temperature,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl Agent for OpenAiAgent {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    async fn act(
+        &self,
+        obs: &Observation,
+        feedback: Option<&ActionError>,
+    ) -> Result<Action, ModelError> {
+        let obs_json = serde_json::to_string(obs).map_err(|e| ModelError::Parse(e.to_string()))?;
+        let body = json!({
+            "model": self.model,
+            "temperature": self.temperature,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": ACTION_SCHEMA_DOC},
+                {"role": "user", "content": build_user_prompt(&obs_json, feedback)},
+            ]
+        });
+
+        let resp = self
+            .client
+            .post(format!("{}/chat/completions", self.base_url.trim_end_matches('/')))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ModelError::Http(e.to_string()))?;
+
+        let status = resp.status();
+        let text = resp.text().await.map_err(|e| ModelError::Http(e.to_string()))?;
+        if !status.is_success() {
+            return Err(ModelError::Api(format!("{status}: {text}")));
+        }
+
+        let v: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| ModelError::Parse(e.to_string()))?;
+        let content = v["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| ModelError::Parse("no assistant content".to_string()))?;
+        let action: Action = serde_json::from_str(content)
+            .map_err(|e| ModelError::Parse(format!("{e} (content: {content})")))?;
+        Ok(action)
+    }
+}
