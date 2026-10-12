@@ -15,6 +15,7 @@ pub enum Action {
     Attack {
         attacker: UnitId,
         target: UnitId,
+        #[serde(default)]
         air_support: Vec<UnitId>,
     },
     /// Recon a hex with an air squadron, revealing enemy units there.
@@ -95,6 +96,16 @@ mod tests {
         assert_eq!(out["type"], "attack");
         assert!(out.get("airSupport").is_some(), "round-trip must use airSupport");
         assert!(out.get("air_support").is_none());
+    }
+
+    #[test]
+    fn attack_action_defaults_missing_air_support() {
+        let json = r#"{"type":"attack","attacker":7,"target":1}"#;
+        let action: Action = serde_json::from_str(json).expect("deserialize");
+        match &action {
+            Action::Attack { air_support, .. } => assert!(air_support.is_empty()),
+            _ => panic!("expected Attack, got {action:?}"),
+        }
     }
 
     #[test]
