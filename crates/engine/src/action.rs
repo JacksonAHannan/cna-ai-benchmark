@@ -6,7 +6,7 @@ use crate::unit::UnitId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Action {
     /// Move a unit along an explicit ordered path of hexes (first = current hex,
     /// last = destination). Engine re-validates the whole path.
@@ -66,5 +66,47 @@ impl ActionError {
 impl std::fmt::Display for ActionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}: {}", self.code, self.message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::map::Hex;
+
+    #[test]
+    fn attack_action_uses_camelcase_air_support() {
+        // The exact JSON shape the prompt tells models to emit.
+        let json = r#"{"type":"attack","attacker":9,"target":4,"airSupport":[]}"#;
+        let action: Action = serde_json::from_str(json).expect("deserialize");
+        match &action {
+            Action::Attack {
+                attacker,
+                target,
+                air_support,
+            } => {
+                assert_eq!(*attacker, 9);
+                assert_eq!(*target, 4);
+                assert!(air_support.is_empty());
+            }
+            _ => panic!("expected Attack, got {action:?}"),
+        }
+        let out = serde_json::to_value(&action).unwrap();
+        assert_eq!(out["type"], "attack");
+        assert!(out.get("airSupport").is_some(), "round-trip must use airSupport");
+        assert!(out.get("air_support").is_none());
+    }
+
+    #[test]
+    fn move_action_roundtrip() {
+        let json = r#"{"type":"move","unit":3,"path":[{"q":1,"r":2},{"q":1,"r":3}]}"#;
+        let action: Action = serde_json::from_str(json).expect("deserialize");
+        match &action {
+            Action::Move { unit, path } => {
+                assert_eq!(*unit, 3);
+                assert_eq!(path, &vec![Hex::new(1, 2), Hex::new(1, 3)]);
+            }
+            _ => panic!("expected Move, got {action:?}"),
+        }
     }
 }
