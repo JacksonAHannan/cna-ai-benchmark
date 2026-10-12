@@ -61,6 +61,10 @@ cargo run -p cna-bench -- --config agents.json --games 4 --seed 7
 `api_key` from config or `OPENAI_API_KEY` — point it at an Ollama/vLLM endpoint to benchmark
 local models. See [`agents.example.json`](agents.example.json).
 
+The spectator server reads the **same** `agents.json` (or `$AGENTS_CONFIG`) from the repo root to
+pick the two live-game agents — place one there before `cargo run -p cna-server` to watch real
+models play live in the browser, or omit it to use the offline `mock-a`/`mock-b` baseline.
+
 ## How a game plays
 
 Each side is controlled by one model (all five of CNA's staff roles are its observation

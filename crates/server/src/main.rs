@@ -138,6 +138,22 @@ fn to_text(msg: &WsMessage) -> Message {
     Message::Text(serde_json::to_string(msg).unwrap().into())
 }
 
+/// Load live-game agents from `agents.json` (or `AGENTS_CONFIG`); fall back to mocks.
+fn load_live_agents() -> Vec<AgentConfig> {
+    let path = std::env::var("AGENTS_CONFIG").unwrap_or_else(|_| "agents.json".to_string());
+    if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(configs) = serde_json::from_str::<Vec<AgentConfig>>(&text) {
+            if configs.len() >= 2 {
+                return configs;
+            }
+        }
+    }
+    vec![
+        AgentConfig::mock("mock-a"),
+        AgentConfig::mock("mock-b"),
+    ]
+}
+
 // ---- handlers ----
 
 async fn health() -> Json<Value> {
@@ -147,9 +163,10 @@ async fn health() -> Json<Value> {
 async fn start_game(State(app): State<AppState>) -> Json<Value> {
     let id = app.next_id.fetch_add(1, Ordering::SeqCst);
     let seed = id.wrapping_add(1000);
+    let configs = load_live_agents();
+    let allied_name = configs[0].name.clone();
+    let axis_name = configs[1].name.clone();
     let state = GameState::new(default_scenario(), seed);
-    let allied_name = "mock-a".to_string();
-    let axis_name = "mock-b".to_string();
 
     let snap = snapshot(&state, &allied_name, &axis_name);
     let (tx, _rx) = broadcast::channel::<WsMessage>(512);
@@ -163,8 +180,8 @@ async fn start_game(State(app): State<AppState>) -> Json<Value> {
     });
     app.games.lock().insert(id, entry.clone());
 
-    let allied: Arc<dyn Agent> = Arc::from(build_agent(&AgentConfig::mock("mock-a")));
-    let axis: Arc<dyn Agent> = Arc::from(build_agent(&AgentConfig::mock("mock-b")));
+    let allied: Arc<dyn Agent> = Arc::from(build_agent(&configs[0]));
+    let axis: Arc<dyn Agent> = Arc::from(build_agent(&configs[1]));
 
     // Paced event fan-out: driver -> mpsc -> (delay) -> broadcast.
     let (ev_tx, mut ev_rx) = tokio::sync::mpsc::unbounded_channel::<WsMessage>();
