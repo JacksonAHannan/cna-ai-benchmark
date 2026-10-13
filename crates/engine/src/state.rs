@@ -6,7 +6,7 @@ use crate::map::{Hex, Map, Site};
 use crate::rng::Rng;
 use crate::scenario::{Scenario, UnitSpec};
 use crate::side::Side;
-use crate::unit::{SupplyStatus, Unit, UnitId};
+use crate::unit::{SupplyStatus, Unit, UnitId, UnitType};
 use crate::victory::{Outcome, VictoryReason};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
