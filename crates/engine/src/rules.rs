@@ -573,34 +573,24 @@ impl GameState {
     }
 
     fn air_combat(&mut self, attacker: UnitId, defender: UnitId) -> (u8, u8) {
-        let a = self.units.get(&attacker).unwrap().strength;
-        let d = self.units.get(&defender).unwrap().strength;
-        let differential = a as i32 - d as i32;
-        let roll = self.rng.below(100);
-        let a_loss = if differential < 0 {
-            2
-        } else if roll < 30 {
-            1
-        } else {
-            0
-        };
-        let d_loss = if differential > 0 {
-            2
-        } else if roll < 30 {
-            1
-        } else {
-            0
-        };
-        self.apply_step_loss(attacker, a_loss);
-        self.apply_step_loss(defender, d_loss);
+        let a = self.units.get(&attacker).unwrap().strength as i32;
+        let d = self.units.get(&defender).unwrap().strength as i32;
+        let a_kill = crate::charts::tacair_kill(a - d)
+            .map(|max| u8::from(crate::charts::roll_seq(&mut self.rng) <= max))
+            .unwrap_or(0);
+        let d_kill = crate::charts::tacair_kill(d - a)
+            .map(|max| u8::from(crate::charts::roll_seq(&mut self.rng) <= max))
+            .unwrap_or(0);
+        self.apply_step_loss(attacker, d_kill);
+        self.apply_step_loss(defender, a_kill);
         self.log.push(Event::AirCombat {
             turn: self.turn,
             attacker,
             defender,
-            attacker_losses: a_loss,
-            defender_losses: d_loss,
+            attacker_losses: d_kill,
+            defender_losses: a_kill,
         });
-        (a_loss, d_loss)
+        (d_kill, a_kill)
     }
 
     // ---- shared helpers ----

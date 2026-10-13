@@ -149,3 +149,46 @@ pub fn resolve_crt(rng: &mut Rng, differential: i32) -> CrtOutcome {
         engaged: engaged && defender_retreat == 0,
     }
 }
+
+/// Roll sequential 2d6 (11–66).
+pub fn roll_seq(rng: &mut Rng) -> u8 {
+    let (t, o) = roll_pair(rng);
+    t * 10 + o
+}
+
+/// Air-to-air: maximum sequential roll that scores a kill (§45.5), or None if no
+/// kill is possible.
+pub fn tacair_kill(d: i32) -> Option<u8> {
+    Some(match d {
+        ..=-13 => return None,
+        -12..=-5 => 11,
+        -4..=-2 => 12,
+        -1 => 13,
+        0 => 14,
+        1 => 15,
+        2 => 16,
+        3 => 22,
+        4 => 24,
+        5 => 26,
+        6 => 32,
+        7 => 34,
+        8 => 36,
+        9 => 43,
+        10 => 46,
+        11 => 53,
+        _ => 56,
+    })
+}
+
+/// Squadron-refit die → percentage of planes refitted (§38.37).
+pub fn refit_percent(die: u8) -> u8 {
+    match die {
+        1 => 100,
+        2 => 80,
+        3 => 70,
+        4 => 60,
+        5 => 50,
+        6..=7 => 40,
+        _ => 33,
+    }
+}
