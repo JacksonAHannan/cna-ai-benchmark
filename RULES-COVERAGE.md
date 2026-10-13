@@ -37,7 +37,7 @@ public descriptions where exact chart values were not available, marked and judg
 | Full ~70 charts (all CRTs, MP, air, naval) | pending |
 | Naval convoy supply (weekly Axis tonnage roll) | reconstructed | Axis supply = variable weekly convoy tonnage capped by port capacity; Allies stable |
 | Granular air game (sorties, air superiority, interception) | pending |
-| 10-player team structure with per-role *agents* (5v5 Elo) | pending (v2; Phase 1 = one agent per side) |
+| 5-role staff partition (CinC/Logistics/RearArea/Air/FrontLine) | faithful | Observation carries per-role unit scopes; per-role *agents* (5v5 Elo) remains v2 |
 | Client-side WASM engine for interactive replay | pending (Phase 1 = server-authoritative spectator) |
 
 ## Reconstruction log

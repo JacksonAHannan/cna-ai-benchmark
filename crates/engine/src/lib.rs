@@ -20,7 +20,7 @@ pub mod victory;
 
 pub use action::{Action, ActionError, ActionErrorKind};
 pub use events::{Event, EventLog};
-pub use fog::Observation;
+pub use fog::{Observation, Role, RoleView};
 pub use map::{Hex, Map, MapHex, Site, Terrain};
 pub use scenario::{default_scenario, Scenario};
 pub use side::{Nationality, Side};

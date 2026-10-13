@@ -4,8 +4,26 @@ use crate::events::Event;
 use crate::map::{Hex, Map, Site};
 use crate::side::Side;
 use crate::state::GameState;
-use crate::unit::Unit;
+use crate::unit::{Unit, UnitId, UnitType};
 use serde::{Deserialize, Serialize};
+
+/// CNA's five staff roles — the observation partition of a side (one agent per
+/// side plays all five; see ADR 0005).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum Role {
+    CinC,
+    Logistics,
+    RearArea,
+    Air,
+    FrontLine,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoleView {
+    pub role: Role,
+    pub note: String,
+    pub units: Vec<UnitId>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DepotView {
@@ -33,6 +51,8 @@ pub struct Observation {
     pub objectives: Vec<Hex>,
     /// Last few events for situational context.
     pub recent_events: Vec<Event>,
+    /// The five-role staff partition: which units each role is responsible for.
+    pub role_views: Vec<RoleView>,
 }
 
 impl GameState {
@@ -83,6 +103,33 @@ impl GameState {
             .rev()
             .collect();
 
+        let mut role_views = Vec::new();
+        for role in [Role::CinC, Role::Logistics, Role::RearArea, Role::Air, Role::FrontLine] {
+            let ids: Vec<UnitId> = units
+                .iter()
+                .filter(|u| match role {
+                    Role::Air => u.kind == UnitType::Air,
+                    Role::FrontLine => u.kind != UnitType::Air,
+                    Role::Logistics => u.side == side,
+                    Role::CinC => true,
+                    Role::RearArea => false,
+                })
+                .map(|u| u.id)
+                .collect();
+            let note = match role {
+                Role::CinC => "overall command".to_string(),
+                Role::Logistics => "supply, fuel, water".to_string(),
+                Role::RearArea => "reinforcements & rear".to_string(),
+                Role::Air => "air squadrons".to_string(),
+                Role::FrontLine => "ground forces".to_string(),
+            };
+            role_views.push(RoleView {
+                role,
+                note,
+                units: ids,
+            });
+        }
+
         Observation {
             scenario: self.scenario_name.clone(),
             turn: self.turn,
@@ -96,6 +143,7 @@ impl GameState {
             depots,
             objectives: self.map.objectives.clone(),
             recent_events,
+            role_views,
         }
     }
 }
