@@ -42,6 +42,7 @@ pub struct GameState {
     /// Hexes revealed by air reconnaissance (persistent strategic picture).
     pub(crate) recon: HashMap<Side, HashSet<Hex>>,
     pub(crate) depot_damage: HashMap<Hex, u32>,
+    pub(crate) axis_convoy: u32,
     pub(crate) reinforcements: Vec<(u32, UnitSpec)>,
 }
 
@@ -92,6 +93,7 @@ impl GameState {
                 (Side::Axis, HashSet::new()),
             ]),
             depot_damage: HashMap::new(),
+            axis_convoy: 0,
             reinforcements: scenario.reinforcements,
         };
 
@@ -120,6 +122,11 @@ impl GameState {
         self.place_reinforcements();
         self.stage = 1;
         self.first_this_turn = self.roll_first();
+        self.axis_convoy = self.rng.between(15, 45) as u32;
+        self.log.push(Event::Convoy {
+            turn: self.turn,
+            tons: self.axis_convoy,
+        });
         self.log.push(Event::TurnStart {
             turn: self.turn,
             side: self.first_this_turn,
@@ -233,13 +240,20 @@ impl GameState {
     fn run_supply(&mut self) {
         let side = self.active;
         let depots = self.map.depots_of(side);
-        let capacity: u32 = depots
+        let port_capacity: u32 = depots
             .iter()
             .map(|&d| {
                 self.depot_capacity(d)
                     .saturating_sub(self.depot_damage.get(&d).copied().unwrap_or(0))
             })
             .sum();
+        // Axis supply arrives by sea (variable convoys); Allies draw on unlimited
+        // reserves but remain bounded by port capacity.
+        let capacity = if side == Side::Axis {
+            port_capacity.min(self.axis_convoy)
+        } else {
+            port_capacity
+        };
 
         // Sort active-side units nearest-to-depot first so that, when demand
         // exceeds capacity, the farthest units starve first (faithful to logistics).

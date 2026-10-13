@@ -32,7 +32,12 @@ pub enum Event {
         name: String,
         status: String,
     },
-    /// Fuel evaporation — CNA's signature 3% / 7%-British detail.
+    /// Weekly Axis convoy tonnage delivered by sea.
+    Convoy {
+        turn: u32,
+        tons: u32,
+    },
+    /// Fuel evaporation — CNA's signature 6% / 9%-Commonwealth detail.
     Evaporation {
         turn: u32,
         side: Side,
