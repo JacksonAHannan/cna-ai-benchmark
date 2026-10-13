@@ -149,13 +149,13 @@ pub fn default_scenario() -> Scenario {
     }
 }
 
-/// Parse the transcribed CNA map (docs/data/map-terrain.md) into a full `Map`.
-/// Unresolved (`?`) cells default to Sea. Sheet shifts: A=0, B=33, C=66, D=99,
-/// E=132 (docs/data/map-geometry.md).
-pub fn full_map() -> Map {
+/// Parse the transcribed map grids and resolve `?` cells to a placeholder:
+/// Sea when adjacent to sea or the footprint edge, otherwise the dominant
+/// neighboring land terrain. Returns (resolved cells, min_row, min_col).
+fn full_map_cells() -> (Vec<(Hex, Terrain)>, i16, i16) {
     let text = include_str!("../../../docs/data/map-terrain.md");
-    let sheets: [(&str, i16); 5] = [("A", 0), ("B", 33), ("C", 66), ("D", 99), ("E", 132)];
-    let mut cells = Vec::new();
+    let sheets: [(char, i16); 5] = [('A', 0), ('B', 33), ('C', 66), ('D', 99), ('E', 132)];
+    let mut raw: Vec<(Hex, Option<Terrain>)> = Vec::new();
     for (name, t) in sheets {
         let marker = format!("## Sheet {name}");
         let Some(sec) = text.split(&marker).nth(1) else {
@@ -170,14 +170,57 @@ pub fn full_map() -> Map {
             let Some(row) = parts.next() else { continue };
             for (i, ch) in row.chars().enumerate() {
                 let cc = i as i16 + 1;
-                if let Some(terrain) = Terrain::from_transcription_code(ch) {
-                    let q = cc;
-                    let r = rr + t - (cc + 1) / 2;
-                    cells.push((Hex::new(q, r), terrain));
-                }
+                let q = cc;
+                let r = rr + t - (cc + 1) / 2;
+                raw.push((Hex::new(q, r), Terrain::from_transcription_code(ch)));
             }
         }
     }
+    let by_hex: std::collections::HashMap<Hex, Terrain> = raw
+        .iter()
+        .filter_map(|(h, t)| t.map(|tt| (*h, tt)))
+        .collect();
+
+    let cells: Vec<(Hex, Terrain)> = raw
+        .iter()
+        .filter_map(|(h, t)| match t {
+            Some(tt) => Some((*h, *tt)),
+            None => {
+                let nbrs: Vec<Terrain> = h
+                    .neighbors()
+                    .iter()
+                    .filter_map(|n| by_hex.get(n).copied())
+                    .collect();
+                if nbrs.is_empty() {
+                    // Isolated `?` outside the footprint — not a playable hex.
+                    None
+                } else if nbrs.iter().any(|t| *t == Terrain::Sea) {
+                    Some((*h, Terrain::Sea))
+                } else {
+                    let mut counts = std::collections::HashMap::new();
+                    for t in &nbrs {
+                        *counts.entry(*t).or_insert(0u32) += 1;
+                    }
+                    let d = counts
+                        .into_iter()
+                        .max_by_key(|(_, n)| *n)
+                        .map(|(t, _)| t)
+                        .unwrap_or(Terrain::Clear);
+                    Some((*h, d))
+                }
+            }
+        })
+        .collect();
+
+    let min_row = cells.iter().map(|(h, _)| h.r).min().unwrap_or(0);
+    let min_col = cells.iter().map(|(h, _)| h.to_offset().1).min().unwrap_or(0);
+    (cells, min_row, min_col)
+}
+
+/// Parse the transcribed CNA map (docs/data/map-terrain.md) into a full `Map`,
+/// resolving ambiguous `?` cells to a neighbor-based placeholder.
+pub fn full_map() -> Map {
+    let (cells, _, _) = full_map_cells();
     Map::from_axial_hexes(cells)
 }
 
@@ -186,33 +229,7 @@ pub fn full_map() -> Map {
 /// printed `ccrr` coordinates (docs/data/compass-setup.md, map-features.md).
 /// Unit strengths/morale are placeholders pending full OB wiring.
 pub fn compass_scenario() -> Scenario {
-    let text = include_str!("../../../docs/data/map-terrain.md");
-    let sheets: [(char, i16); 5] = [('A', 0), ('B', 33), ('C', 66), ('D', 99), ('E', 132)];
-    let mut cells = Vec::new();
-    for (name, t) in sheets {
-        let marker = format!("## Sheet {name}");
-        let Some(sec) = text.split(&marker).nth(1) else {
-            continue;
-        };
-        let grid = sec.split("\n## ").next().unwrap_or(sec);
-        for line in grid.lines() {
-            let mut parts = line.split_whitespace();
-            let Ok(rr) = parts.next().unwrap_or("").parse::<i16>() else {
-                continue;
-            };
-            let Some(row) = parts.next() else { continue };
-            for (i, ch) in row.chars().enumerate() {
-                let cc = i as i16 + 1;
-                if let Some(terrain) = Terrain::from_transcription_code(ch) {
-                    let q = cc;
-                    let r = rr + t - (cc + 1) / 2;
-                    cells.push((Hex::new(q, r), terrain));
-                }
-            }
-        }
-    }
-    let min_row = cells.iter().map(|(h, _)| h.r).min().unwrap_or(0);
-    let min_col = cells.iter().map(|(h, _)| h.to_offset().1).min().unwrap_or(0);
+    let (cells, min_row, min_col) = full_map_cells();
     let mut map = Map::from_axial_hexes(cells);
 
     // Printed ccrr -> normalized offset (row, col).
