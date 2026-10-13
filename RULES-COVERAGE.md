@@ -23,7 +23,7 @@ public descriptions where exact chart values were not available, marked and judg
 | Ammunition resource | faithful | Ammo points refilled in supply, consumed per attack; no ammo → cannot attack |
 | Hex movement with terrain cost + fuel burn | reconstructed | Terrain costs are plausible values, not CNA's exact MP chart |
 | Differential CRT combat (percentage losses, retreat) | reconstructed | 18-column differential structure faithful; column values reconstructed (`docs/cna-rules.md` §15) |
-| Air support (column shift) + recon (fog reveal) | approximated | CNA's air game is far more granular; v1 is a single abstracted mission |
+| Air game: recon, ground support, strategic bombing, interception | reconstructed | Bombing disrupts depot supply; enemy air within 4 hexes intercepts (air-to-air losses); refit/sortie detail not yet modeled |
 | Rear-area reinforcements on schedule | faithful | Reinforcement schedule is scenario data |
 | Fog-of-war: side intel + detection range + air recon | faithful | Per-role *observation partition*; one Agent per side acts for all roles |
 | Victory: objective control at turn horizon / elimination | reconstructed | Scenario-defined; CNA's own scenarios vary |

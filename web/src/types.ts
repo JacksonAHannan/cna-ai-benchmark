@@ -82,6 +82,10 @@ export interface Event {
   hex?: Hex;
   kind?: string;
   strength?: number;
+  intercepted?: boolean;
+  supply_hit?: number;
+  attacker_losses?: number;
+  defender_losses?: number;
   turn_horizon?: number;
   odds_numerator?: number;
   odds_denominator?: number;

@@ -40,6 +40,7 @@ pub struct GameState {
     pub(crate) next_unit_id: UnitId,
     /// Hexes revealed by air reconnaissance (persistent strategic picture).
     pub(crate) recon: HashMap<Side, HashSet<Hex>>,
+    pub(crate) depot_damage: HashMap<Hex, u32>,
     pub(crate) reinforcements: Vec<(u32, UnitSpec)>,
 }
 
@@ -88,6 +89,7 @@ impl GameState {
                 (Side::Allied, HashSet::new()),
                 (Side::Axis, HashSet::new()),
             ]),
+            depot_damage: HashMap::new(),
             reinforcements: scenario.reinforcements,
         };
 
@@ -210,7 +212,13 @@ impl GameState {
     fn run_supply(&mut self) {
         let side = self.active;
         let depots = self.map.depots_of(side);
-        let capacity: u32 = depots.iter().map(|&d| self.depot_capacity(d)).sum();
+        let capacity: u32 = depots
+            .iter()
+            .map(|&d| {
+                self.depot_capacity(d)
+                    .saturating_sub(self.depot_damage.get(&d).copied().unwrap_or(0))
+            })
+            .sum();
 
         // Sort active-side units nearest-to-depot first so that, when demand
         // exceeds capacity, the farthest units starve first (faithful to logistics).

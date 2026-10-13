@@ -80,6 +80,7 @@ Action variants (hexes are {"q":int,"r":int} axial coordinates):
 - {"type":"move","unit":<unitId>,"path":[<hex>,...]}   path[0] must equal the unit's current hex; each step must be adjacent, passable, and unoccupied.
 - {"type":"attack","attacker":<unitId>,"target":<unitId>,"airSupport":[<airUnitId>,...]}  attacker must be adjacent (artillery 1-2 hexes); target must be visible.
 - {"type":"airRecon","squadron":<airUnitId>,"target":<hex>}  reveals enemy units in/around the hex.
+- {"type":"bomb","squadron":<airUnitId>,"target":<hex>}  bombs a depot (disrupts supply) or pins enemy units; enemy air within 4 hexes intercepts.
 - {"type":"pass"}
 - {"type":"endTurn"}
 

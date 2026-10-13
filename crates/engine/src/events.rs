@@ -87,6 +87,20 @@ pub enum Event {
         target: Hex,
         revealed: Vec<UnitId>,
     },
+    Bomb {
+        turn: u32,
+        squadron: UnitId,
+        target: Hex,
+        intercepted: bool,
+        supply_hit: u32,
+    },
+    AirCombat {
+        turn: u32,
+        attacker: UnitId,
+        defender: UnitId,
+        attacker_losses: u8,
+        defender_losses: u8,
+    },
     Reinforcement {
         turn: u32,
         unit: UnitId,

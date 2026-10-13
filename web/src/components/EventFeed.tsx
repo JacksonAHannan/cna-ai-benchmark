@@ -27,6 +27,16 @@ function describe(ev: Event): { text: string; cls: string } {
       return { text: `✕ ${ev.name} destroyed`, cls: 'evt-elimination' };
     case 'airRecon':
       return { text: `✈ recon: squadron ${ev.squadron} over ${hexLabel(ev.target)} (revealed ${(ev.revealed ?? []).length})`, cls: 'evt-airRecon' };
+    case 'bomb':
+      return {
+        text: `💣 bombing: squadron ${ev.squadron} → ${hexLabel(ev.target)} (supply −${ev.supply_hit ?? 0}${ev.intercepted ? ', intercepted' : ''})`,
+        cls: 'evt-airRecon',
+      };
+    case 'airCombat':
+      return {
+        text: `✈ air combat: ${ev.attacker} vs ${ev.defender} (losses ${ev.attacker_losses ?? 0}/${ev.defender_losses ?? 0})`,
+        cls: 'evt-attack',
+      };
     case 'reinforcement':
       return { text: `+ reinforcement: ${ev.name} arrives at ${hexLabel(ev.hex)}`, cls: 'evt-reinforcement' };
     case 'illegalAction':

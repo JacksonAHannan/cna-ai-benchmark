@@ -119,7 +119,21 @@ fn decide(obs: &Observation, failed: &HashSet<(UnitId, Hex)>) -> Action {
         };
     }
 
-    // 3. Recon toward the nearest enemy (or objective) if air is available.
+    // 3. Bomb an enemy depot in range (strategic supply disruption).
+    if let Some(a) = own.iter().find(|a| a.kind == UnitType::Air && a.missions > 0) {
+        if let Some(depot) = obs
+            .depots
+            .iter()
+            .find(|d| d.side != viewer && a.hex.unwrap().distance(d.hex) <= 6)
+        {
+            return Action::Bomb {
+                squadron: a.id,
+                target: depot.hex,
+            };
+        }
+    }
+
+    // 4. Recon toward the nearest enemy (or objective) if air is available.
     if let Some(a) = own.iter().find(|a| a.kind == UnitType::Air && a.missions > 0) {
         let target = nearest_target(obs, a.hex.unwrap(), &enemy);
         return Action::AirRecon {

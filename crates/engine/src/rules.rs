@@ -3,7 +3,7 @@
 
 use crate::action::{Action, ActionError, ActionErrorKind};
 use crate::events::Event;
-use crate::map::Hex;
+use crate::map::{Hex, Site};
 use crate::rng::Rng;
 use crate::side::Side;
 use crate::state::GameState;
@@ -52,6 +52,7 @@ impl GameState {
                 air_support,
             } => self.resolve_attack(attacker, target, &air_support),
             Action::AirRecon { squadron, target } => self.resolve_air_recon(squadron, target),
+            Action::Bomb { squadron, target } => self.resolve_bomb(squadron, target),
             Action::Pass => {}
             Action::EndTurn => self.end_side_turn(),
         }
@@ -70,6 +71,7 @@ impl GameState {
             Action::AirRecon { squadron, target } => {
                 self.validate_air_recon(side, *squadron, *target)
             }
+            Action::Bomb { squadron, target } => self.validate_bomb(side, *squadron, *target),
             Action::Pass | Action::EndTurn => Ok(()),
         }
     }
@@ -467,6 +469,119 @@ impl GameState {
         });
     }
 
+    fn validate_bomb(&self, side: Side, squadron: UnitId, target: Hex) -> Result<(), ActionError> {
+        let su = self
+            .units
+            .get(&squadron)
+            .ok_or_else(|| ActionError::new(ActionErrorKind::UnknownUnit, "unknown air unit"))?;
+        if su.side != side {
+            return Err(ActionError::new(ActionErrorKind::NotYourUnit, "not your air unit"));
+        }
+        if su.kind != UnitType::Air {
+            return Err(ActionError::new(ActionErrorKind::NotAirUnit, "not an air unit"));
+        }
+        if su.eliminated() {
+            return Err(ActionError::new(
+                ActionErrorKind::EliminatedUnit,
+                "air unit is eliminated",
+            ));
+        }
+        if su.missions == 0 {
+            return Err(ActionError::new(
+                ActionErrorKind::NoMissions,
+                "air unit has no sorties left",
+            ));
+        }
+        if !self.map.in_bounds(target) {
+            return Err(ActionError::new(ActionErrorKind::UnknownHex, "hex out of bounds"));
+        }
+        Ok(())
+    }
+
+    fn resolve_bomb(&mut self, squadron: UnitId, target: Hex) {
+        let side = self.active;
+        {
+            let su = self.units.get_mut(&squadron).unwrap();
+            su.missions -= 1;
+        }
+
+        // Interception: strongest enemy air within 4 hexes of the target.
+        let mut interceptors: Vec<UnitId> = self
+            .units
+            .values()
+            .filter(|u| {
+                !u.eliminated()
+                    && u.side != side
+                    && u.kind == UnitType::Air
+                    && u.hex.map(|h| h.distance(target) <= 4).unwrap_or(false)
+            })
+            .map(|u| u.id)
+            .collect();
+        interceptors.sort_by_key(|&id| std::cmp::Reverse(self.units[&id].strength));
+
+        let mut intercepted = false;
+        if let Some(defender) = interceptors.into_iter().next() {
+            intercepted = true;
+            self.air_combat(squadron, defender);
+            if self.units.get(&squadron).unwrap().eliminated() {
+                return;
+            }
+        }
+
+        let target_is_enemy_depot = self
+            .map
+            .get(target)
+            .and_then(|m| m.site.as_ref())
+            .map(|s| matches!(s, Site::Depot { side: ds, .. } if *ds != side))
+            .unwrap_or(false);
+
+        let mut supply_hit = 0;
+        if target_is_enemy_depot {
+            let dmg = self.depot_damage.entry(target).or_insert(0);
+            *dmg += 2;
+            supply_hit = 2;
+        }
+
+        self.log.push(Event::Bomb {
+            turn: self.turn,
+            squadron,
+            target,
+            intercepted,
+            supply_hit,
+        });
+    }
+
+    fn air_combat(&mut self, attacker: UnitId, defender: UnitId) -> (u8, u8) {
+        let a = self.units.get(&attacker).unwrap().strength;
+        let d = self.units.get(&defender).unwrap().strength;
+        let differential = a as i32 - d as i32;
+        let roll = self.rng.below(100);
+        let a_loss = if differential < 0 {
+            2
+        } else if roll < 30 {
+            1
+        } else {
+            0
+        };
+        let d_loss = if differential > 0 {
+            2
+        } else if roll < 30 {
+            1
+        } else {
+            0
+        };
+        self.apply_step_loss(attacker, a_loss);
+        self.apply_step_loss(defender, d_loss);
+        self.log.push(Event::AirCombat {
+            turn: self.turn,
+            attacker,
+            defender,
+            attacker_losses: a_loss,
+            defender_losses: d_loss,
+        });
+        (a_loss, d_loss)
+    }
+
     // ---- shared helpers ----
 
     pub(crate) fn occupied_by_any(&self, hex: Hex) -> bool {
@@ -525,4 +640,30 @@ fn vary(rng: &mut Rng, median: u8) -> u8 {
     }
     let delta = rng.below(21) as i16 - 10;
     (median as i16 + delta).clamp(0, 50) as u8
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::default_scenario;
+
+    #[test]
+    fn bomb_disrupts_enemy_depot() {
+        let mut state = GameState::new(default_scenario(), 7);
+        let side = state.active;
+        let squadron = state
+            .units
+            .values()
+            .find(|u| u.side == side && u.kind == UnitType::Air)
+            .expect("active side has air")
+            .id;
+        let depot = state.map.depots_of(side.other())[0];
+        let before = state.depot_damage.get(&depot).copied().unwrap_or(0);
+        assert!(state
+            .apply(side, &Action::Bomb { squadron, target: depot })
+            .is_ok());
+        let after = state.depot_damage.get(&depot).copied().unwrap_or(0);
+        assert!(after > before, "depot damage should increase after a bomb");
+        assert!(state.log.events.iter().any(|e| matches!(e, Event::Bomb { .. })));
+    }
 }

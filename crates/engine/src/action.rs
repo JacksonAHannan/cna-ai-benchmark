@@ -20,6 +20,8 @@ pub enum Action {
     },
     /// Recon a hex with an air squadron, revealing enemy units there.
     AirRecon { squadron: UnitId, target: Hex },
+    /// Bomb an enemy depot (disrupts supply) or pin enemy units in a hex.
+    Bomb { squadron: UnitId, target: Hex },
     Pass,
     EndTurn,
 }
