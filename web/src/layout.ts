@@ -3,13 +3,15 @@ import type { Hex } from './types';
 const SQRT3 = Math.sqrt(3);
 
 export function hexToPixel(q: number, r: number, size: number): { x: number; y: number } {
-  return { x: size * SQRT3 * (q + r / 2), y: size * 1.5 * r };
+  // Flat-top layout, north-up: the board's long axis (r, east–west) is
+  // horizontal and the Mediterranean (high q) is at the top.
+  return { x: size * 1.5 * r, y: -size * SQRT3 * (q + r / 2) };
 }
 
 export function hexCorners(cx: number, cy: number, size: number): [number, number][] {
   const pts: [number, number][] = [];
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 180) * (60 * i - 30);
+    const angle = (Math.PI / 180) * (60 * i);
     pts.push([cx + size * Math.cos(angle), cy + size * Math.sin(angle)]);
   }
   return pts;

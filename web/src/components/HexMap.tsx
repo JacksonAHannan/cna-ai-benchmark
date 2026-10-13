@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { DepotView, GameMap, Hex, MapHex, Unit } from '../types';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { DepotView, GameMap, Hex, Unit } from '../types';
 import { hexPath, hexToPixel, mapBounds } from '../layout';
 
 const TERRAIN_COLOR: Record<string, string> = {
@@ -41,6 +41,21 @@ export default function HexMap({ map, units, depots, objectives, selectedId, onS
   const MINIMAP_W = 220;
   const minimapH = (MINIMAP_W * totalH) / totalW;
   const minimapScale = MINIMAP_W / totalW;
+
+  // Terrain is static; bake all hexes into one path per terrain type so the
+  // map is 17 SVG nodes instead of ~20k and never re-renders on events.
+  const terrainPaths = useMemo(() => {
+    const main = new Map<string, string>();
+    const mini = new Map<string, string>();
+    for (const h of map.hexes) {
+      const { x, y } = hexToPixel(h.hex.q, h.hex.r, size);
+      main.set(h.terrain, (main.get(h.terrain) ?? '') + hexPath(x, y, size));
+      const mx = (x - full.minX) * minimapScale;
+      const my = (y - full.minY) * minimapScale;
+      mini.set(h.terrain, (mini.get(h.terrain) ?? '') + hexPath(mx, my, size * minimapScale));
+    }
+    return { main, mini };
+  }, [map, size, full.minX, full.minY, minimapScale]);
 
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState({ x: full.minX + full.width / 2, y: full.minY + full.height / 2 });
@@ -88,18 +103,15 @@ export default function HexMap({ map, units, depots, objectives, selectedId, onS
         onMouseLeave={() => (dragRef.current = null)}
         style={{ cursor: dragRef.current ? 'grabbing' : 'grab' }}
       >
-        {map.hexes.map((h: MapHex) => {
-          const { x, y } = hexToPixel(h.hex.q, h.hex.r, size);
-          return (
-            <path
-              key={`${h.hex.q},${h.hex.r}`}
-              d={hexPath(x, y, size)}
-              fill={TERRAIN_COLOR[h.terrain] ?? 'var(--sand)'}
-              stroke="var(--border)"
-              strokeWidth={0.7}
-            />
-          );
-        })}
+        {[...terrainPaths.main.entries()].map(([terrain, d]) => (
+          <path
+            key={terrain}
+            d={d}
+            fill={TERRAIN_COLOR[terrain] ?? 'var(--sand)'}
+            stroke="var(--border)"
+            strokeWidth={0.7}
+          />
+        ))}
 
         {/* Objectives */}
         {objectives.map((o) => {
@@ -195,18 +207,14 @@ export default function HexMap({ map, units, depots, objectives, selectedId, onS
         }}
       >
         <rect x={0} y={0} width={MINIMAP_W} height={minimapH} fill="var(--sea)" />
-        {map.hexes.map((h) => {
-          const p = hexToPixel(h.hex.q, h.hex.r, size);
-          return (
-            <circle
-              key={`mm-${h.hex.q},${h.hex.r}`}
-              cx={(p.x - full.minX) * minimapScale}
-              cy={(p.y - full.minY) * minimapScale}
-              r={1.1}
-              fill={TERRAIN_COLOR[h.terrain] ?? 'var(--sand)'}
-            />
-          );
-        })}
+        {[...terrainPaths.mini.entries()].map(([terrain, d]) => (
+          <path
+            key={`mm-${terrain}`}
+            d={d}
+            fill={TERRAIN_COLOR[terrain] ?? 'var(--sand)'}
+            stroke="none"
+          />
+        ))}
         <rect
           x={(center.x - winW / 2 - full.minX) * minimapScale}
           y={(center.y - winH / 2 - full.minY) * minimapScale}

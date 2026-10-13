@@ -85,6 +85,7 @@ export default function App() {
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
+  const [theater, setTheater] = useState(false);
   const isReplayRef = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -248,12 +249,33 @@ export default function App() {
     }
   }, [spec]);
 
+  const toggleTheater = () => {
+    const next = !theater;
+    setTheater(next);
+    if (next) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    const onFs = () => {
+      if (!document.fullscreenElement) setTheater(false);
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
   return (
-    <div className="app">
+    <div className={theater ? 'app theater' : 'app'}>
       <header className="header">
         <h1>Campaign for North Africa</h1>
         <span className="sub">AI BENCHMARK · SPECTATOR</span>
         <span className="spacer" />
+        <button className="btn" style={{ width: 'auto' }} onClick={toggleTheater} title="Fullscreen spectate">
+          {theater ? '⤢ Exit fullscreen' : '⛶ Fullscreen'}
+        </button>
         <button className="btn primary" style={{ width: 'auto' }} onClick={startGame}>
           ▶ Start new game
         </button>
