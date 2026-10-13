@@ -111,6 +111,10 @@ pub struct Unit {
     pub contact: bool,
     /// Anti-aircraft (flak) points contributed when aircraft attack this hex (§46).
     pub aa: u8,
+    /// Close-assault rating per TOE point, attacking (§4.46).
+    pub assault_off: u8,
+    /// Close-assault rating per TOE point, defending (§4.46).
+    pub assault_def: u8,
 }
 
 impl Unit {
@@ -141,6 +145,14 @@ impl Unit {
             UnitType::Artillery => 2,
             _ => 0,
         };
+        // Close-assault ratings per TOE point (§4.46): tank 3/3, infantry 1/2,
+        // artillery 1/1.
+        let (assault_off, assault_def) = match kind {
+            UnitType::Armor => (3, 3),
+            UnitType::Motorized | UnitType::Infantry => (1, 2),
+            UnitType::Artillery => (1, 1),
+            UnitType::Air => (0, 0),
+        };
         Unit {
             id,
             name: name.to_string(),
@@ -170,6 +182,8 @@ impl Unit {
             morale,
             contact: false,
             aa,
+            assault_off,
+            assault_def,
         }
     }
 

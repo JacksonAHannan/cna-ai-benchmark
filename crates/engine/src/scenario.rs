@@ -288,15 +288,15 @@ pub fn compass_scenario() -> Scenario {
     let bde = Organization::Brigade;
     let units = vec![
         // Commonwealth (Western Desert Force).
-        UnitSpec::new("7th Armoured Division", allied, br, UnitType::Armor, 8, div, 1, 0, 0),
+        UnitSpec::new("7th Armoured Division", allied, br, UnitType::Armor, 8, div, 2, 0, 0),
         UnitSpec::new("4th Indian Division", allied, cw, UnitType::Infantry, 8, div, 1, 0, 0),
-        UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 6, div, 2, 0, 0),
+        UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 6, div, 1, 0, 0),
         UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 6, div, 1, 0, 0),
-        UnitSpec::new("WDF 7th Medium Arty", allied, br, UnitType::Artillery, 3, bde, 0, 0, 0),
+        UnitSpec::new("WDF 7th Medium Arty", allied, br, UnitType::Artillery, 3, bde, 1, 0, 0),
         // Italian Tenth Army (west).
-        UnitSpec::new("Maletti Division", axis, ita, UnitType::Motorized, 5, div, 0, 0, 0),
-        UnitSpec::new("1st Libyan Division", axis, ita, UnitType::Infantry, 5, div, -1, 0, 0),
-        UnitSpec::new("2nd Libyan Division", axis, ita, UnitType::Infantry, 5, div, -1, 0, 0),
+        UnitSpec::new("Maletti Division", axis, ita, UnitType::Motorized, 5, div, -2, 0, 0),
+        UnitSpec::new("1st Libyan Division", axis, ita, UnitType::Infantry, 5, div, -2, 0, 0),
+        UnitSpec::new("2nd Libyan Division", axis, ita, UnitType::Infantry, 5, div, -2, 0, 0),
         UnitSpec::new("1st CCNN Division", axis, ita, UnitType::Infantry, 4, div, 0, 0, 0),
         UnitSpec::new("63rd Cirene Division", axis, ita, UnitType::Infantry, 4, div, -1, 0, 0),
         UnitSpec::new("62nd Marmarica Division", axis, ita, UnitType::Infantry, 4, div, -1, 0, 0),
@@ -340,6 +340,24 @@ pub fn compass_scenario() -> Scenario {
         }
     }
 
+    // Reinforcements arriving during the Italian Campaign (GT1–20), routed to
+    // their side's entry port. Arrival turns from the OA "Arrives" column.
+    let (alex_r, alex_c) = ccrr('E', 36, 13);
+    let (ben_r, ben_c) = ccrr('A', 48, 27);
+    let reinforcements = vec![
+        // Commonwealth (enter via Alexandria).
+        (1, UnitSpec::new("Polish (Carpathian) Brigade", allied, cw, UnitType::Infantry, 4, bde, 1, alex_r, alex_c)),
+        (2, UnitSpec::new("7th Royal Tank Regt", allied, br, UnitType::Armor, 3, bde, 1, alex_r, alex_c)),
+        (4, UnitSpec::new("3rd Kings Own Hussars", allied, br, UnitType::Armor, 3, bde, 1, alex_r, alex_c)),
+        (6, UnitSpec::new("6th NZ Brigade", allied, cw, UnitType::Infantry, 4, bde, 1, alex_r, alex_c)),
+        (14, UnitSpec::new("18th Australian Brigade", allied, cw, UnitType::Infantry, 4, bde, 1, alex_r, alex_c)),
+        (15, UnitSpec::new("2nd Armoured Division", allied, br, UnitType::Armor, 8, div, 2, alex_r, alex_c)),
+        (20, UnitSpec::new("22nd Guards Brigade", allied, br, UnitType::Infantry, 4, bde, 1, alex_r, alex_c)),
+        (20, UnitSpec::new("9th Australian Division", allied, cw, UnitType::Infantry, 6, div, 1, alex_r, alex_c)),
+        // Italian (enter via Benghazi).
+        (12, UnitSpec::new("60th Sabratha Division", axis, ita, UnitType::Infantry, 5, div, -1, ben_r, ben_c)),
+    ];
+
     Scenario {
         id: "compass-full".to_string(),
         name: "Italian Campaign (full map)".to_string(),
@@ -348,7 +366,7 @@ pub fn compass_scenario() -> Scenario {
         start_month: 9,
         map,
         units,
-        reinforcements: vec![],
+        reinforcements,
     }
 }
 

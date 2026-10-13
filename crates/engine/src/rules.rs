@@ -342,11 +342,12 @@ impl GameState {
         let a = self.units.get(&attacker).unwrap().clone();
         let t = self.units.get(&target).unwrap().clone();
 
-        let mut a_str = a.strength as u32;
+        // Combat strength = TOE points × close-assault rating (§4.46).
+        let mut a_str = a.strength as u32 * a.assault_off.max(1) as u32;
         if a.supply == SupplyStatus::OutOfSupply {
             a_str = (a_str / 2).max(1);
         }
-        let mut d_str = (t.strength as u32).max(1);
+        let mut d_str = (t.strength as u32 * t.assault_def.max(1) as u32).max(1);
         if t.water == 0 {
             d_str = (d_str / 2).max(1); // waterless defenders fight at half strength
         }
