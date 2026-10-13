@@ -7,7 +7,7 @@ use crate::map::{Hex, Site};
 use crate::rng::Rng;
 use crate::side::Side;
 use crate::state::GameState;
-use crate::unit::{SupplyStatus, UnitId, UnitType};
+use crate::unit::{Organization, SupplyStatus, UnitId, UnitType};
 
 /// Range at which a side detects enemy units (hex distance).
 const DETECTION_RANGE: i32 = 2;
@@ -357,7 +357,18 @@ impl GameState {
             }
         }
         air_shift = air_shift.min(2);
-        let shift = air_shift - terrain_shift;
+        // §15.51 2:1 raw strength, §15.53 organization, §15.61–62 morale.
+        let org_shift =
+            org_shift(a.organization, t.organization, a.strength as u32, t.strength as u32);
+        let ratio_shift = if a.strength as u32 >= 2 * t.strength as u32 {
+            2
+        } else if t.strength as u32 >= 2 * a.strength as u32 {
+            -2
+        } else {
+            0
+        };
+        let morale_shift = a.morale as i32 - t.morale as i32;
+        let shift = air_shift - terrain_shift + org_shift + ratio_shift + morale_shift;
 
         let result = combat_result(&mut self.rng, a_str, d_str, shift);
 
@@ -639,6 +650,47 @@ fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> Com
         attacker_loss_pct: o.attacker_loss_pct,
         defender_loss_pct: o.defender_loss_pct,
         defender_retreat_hexes: o.defender_retreat,
+    }
+}
+
+/// Organizational column shift (§15.53): positive favors the attacker.
+/// `smaller_str` is the strength (TOE points) of the smaller organization,
+/// used to distinguish 3-point from 2-point brigades.
+fn org_shift(
+    attacker: Organization,
+    defender: Organization,
+    attacker_str: u32,
+    defender_str: u32,
+) -> i32 {
+    let ar = attacker.rank() as i32;
+    let dr = defender.rank() as i32;
+    if ar == dr {
+        return 0;
+    }
+    let (larger, smaller, smaller_str) = if ar > dr {
+        (attacker, defender, defender_str)
+    } else {
+        (defender, attacker, attacker_str)
+    };
+    let mag = match (larger, smaller) {
+        (Organization::Division, Organization::Brigade) => {
+            if smaller_str >= 3 {
+                1
+            } else {
+                2
+            }
+        }
+        (Organization::Division, Organization::Battalion) => 4,
+        (Organization::Division, Organization::Company) => 8,
+        (Organization::Brigade, Organization::Battalion) => 2,
+        (Organization::Brigade, Organization::Company) => 4,
+        (Organization::Battalion, Organization::Company) => 2,
+        _ => 0,
+    };
+    if ar > dr {
+        mag
+    } else {
+        -mag
     }
 }
 

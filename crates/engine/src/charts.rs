@@ -278,3 +278,31 @@ pub const DUMP_MAXIMA: [[u32; 4]; 3] = [
 
 /// Commonwealth rail tonnage per Operations Stage (§54).
 pub const RAIL_TONS: u32 = 1500;
+
+// === Naval (§55–56) ===
+
+/// Axis supply lanes: name, destination port, and distance in hexes from the
+/// primary origin (shortest origin-to-lane distance in the published table).
+pub const NAVAL_LANES: [(&str, &str, u32); 6] = [
+    ("West Sicily to Bizerta", "Bizerta", 20),
+    ("West Sicily to Tripoli", "Tripoli", 45),
+    ("Italy to Benghazi", "Benghazi", 79),
+    ("Greece to Benghazi", "Benghazi", 117),
+    ("Greece to Tobruk", "Tobruk", 137),
+    ("Italy to Tobruk", "Tobruk", 101),
+];
+
+/// Port capacity per Operations Stage (§55.3): efficiency, stacking points in,
+/// stacking points out, and maximum tonnage. `u32::MAX` marks "n/a".
+pub const PORT_CAPACITY: [(&str, u32, u32, u32, u32); 10] = [
+    ("Tripoli", 10, 10, 15, 15000),
+    ("Bizerta", 10, 10, 15, 3333),
+    ("Alexandria", 10, 5, 10, 15000),
+    ("Tobruk", 5, 1, 3, 1700),
+    ("Benghazi", 3, 2, 5, 2500),
+    ("Mersa Matruh", 1, 1, 2, 250),
+    ("Bardia", 1, 0, 1, 400),
+    ("Sollum", 1, 0, 1, 250),
+    ("Derna", 1, u32::MAX, 1, 300),
+    ("All others", 1, u32::MAX, u32::MAX, 100),
+];

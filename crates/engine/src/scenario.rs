@@ -2,7 +2,7 @@
 
 use crate::map::{Map, Terrain};
 use crate::side::{Nationality, Side};
-use crate::unit::UnitType;
+use crate::unit::{Organization, UnitType};
 use serde::{Deserialize, Serialize};
 
 /// A unit to place on the map at scenario start (or as a reinforcement).
@@ -13,6 +13,8 @@ pub struct UnitSpec {
     pub nationality: Nationality,
     pub kind: UnitType,
     pub strength: u8,
+    pub organization: Organization,
+    pub morale: i8,
     pub row: i16,
     pub col: i16,
 }
@@ -24,6 +26,8 @@ impl UnitSpec {
         nationality: Nationality,
         kind: UnitType,
         strength: u8,
+        organization: Organization,
+        morale: i8,
         row: i16,
         col: i16,
     ) -> Self {
@@ -33,6 +37,8 @@ impl UnitSpec {
             nationality,
             kind,
             strength,
+            organization,
+            morale,
             row,
             col,
         }
@@ -101,30 +107,31 @@ pub fn default_scenario() -> Scenario {
 
     let units = vec![
         // Commonwealth Eighth Army (east, around Mersa Matruh / Alexandria).
-        UnitSpec::new("7th Armoured Division", allied, br, UnitType::Armor, 6, 3, 23),
-        UnitSpec::new("4th Indian Division", allied, cw, UnitType::Infantry, 6, 3, 21),
-        UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 5, 3, 21),
-        UnitSpec::new("Western Desert Force Arty", allied, br, UnitType::Artillery, 3, 3, 21),
-        UnitSpec::new("RAF No.202 Group", allied, br, UnitType::Air, 12, 3, 25),
-        UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 5, 3, 22),
-        UnitSpec::new("9th Australian Division", allied, cw, UnitType::Infantry, 5, 4, 22),
+        // Morale is a placeholder (−3..+3) pending full OB transcription.
+        UnitSpec::new("7th Armoured Division", allied, br, UnitType::Armor, 6, Organization::Division, 1, 3, 23),
+        UnitSpec::new("4th Indian Division", allied, cw, UnitType::Infantry, 6, Organization::Division, 1, 3, 21),
+        UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 5, Organization::Division, 2, 3, 21),
+        UnitSpec::new("Western Desert Force Arty", allied, br, UnitType::Artillery, 3, Organization::Brigade, 0, 3, 21),
+        UnitSpec::new("RAF No.202 Group", allied, br, UnitType::Air, 12, Organization::Company, 0, 3, 25),
+        UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 5, Organization::Division, 1, 3, 22),
+        UnitSpec::new("9th Australian Division", allied, cw, UnitType::Infantry, 5, Organization::Division, 1, 4, 22),
         // Axis: Panzergruppe Afrika + Italian Tenth Army (west, Tripoli / Benghazi).
-        UnitSpec::new("15th Panzer Division", axis, ger, UnitType::Armor, 5, 3, 4),
-        UnitSpec::new("21st Panzer Division", axis, ger, UnitType::Armor, 4, 3, 4),
-        UnitSpec::new("90th Light Division", axis, ger, UnitType::Motorized, 4, 3, 5),
-        UnitSpec::new("Ariete Armoured", axis, ita, UnitType::Armor, 3, 3, 9),
-        UnitSpec::new("Trento Motorized", axis, ita, UnitType::Motorized, 4, 3, 9),
-        UnitSpec::new("10th Army Infantry", axis, ita, UnitType::Infantry, 5, 3, 10),
-        UnitSpec::new("Brescia Division", axis, ita, UnitType::Infantry, 4, 4, 9),
-        UnitSpec::new("Pavia Division", axis, ita, UnitType::Infantry, 3, 4, 10),
-        UnitSpec::new("Regia Aeronautica", axis, ita, UnitType::Air, 9, 3, 3),
+        UnitSpec::new("15th Panzer Division", axis, ger, UnitType::Armor, 5, Organization::Division, 2, 3, 4),
+        UnitSpec::new("21st Panzer Division", axis, ger, UnitType::Armor, 4, Organization::Division, 2, 3, 4),
+        UnitSpec::new("90th Light Division", axis, ger, UnitType::Motorized, 4, Organization::Division, 1, 3, 5),
+        UnitSpec::new("Ariete Armoured", axis, ita, UnitType::Armor, 3, Organization::Division, 0, 3, 9),
+        UnitSpec::new("Trento Motorized", axis, ita, UnitType::Motorized, 4, Organization::Division, 0, 3, 9),
+        UnitSpec::new("10th Army Infantry", axis, ita, UnitType::Infantry, 5, Organization::Division, -1, 3, 10),
+        UnitSpec::new("Brescia Division", axis, ita, UnitType::Infantry, 4, Organization::Division, -1, 4, 9),
+        UnitSpec::new("Pavia Division", axis, ita, UnitType::Infantry, 3, Organization::Division, -1, 4, 10),
+        UnitSpec::new("Regia Aeronautica", axis, ita, UnitType::Air, 9, Organization::Company, 0, 3, 3),
     ];
 
     let reinforcements = vec![
-        (3, UnitSpec::new("5th Light Division", axis, ger, UnitType::Motorized, 4, 2, 3)),
-        (4, UnitSpec::new("2nd Armoured Division", allied, br, UnitType::Armor, 4, 2, 25)),
-        (5, UnitSpec::new("22nd Armoured Brigade", allied, br, UnitType::Armor, 3, 2, 25)),
-        (6, UnitSpec::new("Ramcke Brigade", axis, ger, UnitType::Infantry, 3, 2, 3)),
+        (3, UnitSpec::new("5th Light Division", axis, ger, UnitType::Motorized, 4, Organization::Division, 1, 2, 3)),
+        (4, UnitSpec::new("2nd Armoured Division", allied, br, UnitType::Armor, 4, Organization::Division, 1, 2, 25)),
+        (5, UnitSpec::new("22nd Armoured Brigade", allied, br, UnitType::Armor, 3, Organization::Brigade, 1, 2, 25)),
+        (6, UnitSpec::new("Ramcke Brigade", axis, ger, UnitType::Infantry, 3, Organization::Brigade, 1, 2, 3)),
     ];
 
     Scenario {
@@ -153,6 +160,8 @@ impl Scenario {
                     spec.nationality,
                     spec.kind,
                     spec.strength,
+                    spec.organization,
+                    spec.morale,
                     hex,
                 )
             })

@@ -60,6 +60,8 @@ impl GameState {
                 spec.nationality,
                 spec.kind,
                 spec.strength,
+                spec.organization,
+                spec.morale,
                 hex,
             );
             units.insert(next_id, unit);
@@ -196,6 +198,8 @@ impl GameState {
                 spec.nationality,
                 spec.kind,
                 spec.strength,
+                spec.organization,
+                spec.morale,
                 hex,
             );
             self.log.push(Event::Reinforcement {

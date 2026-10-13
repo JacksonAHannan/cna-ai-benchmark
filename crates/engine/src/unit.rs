@@ -49,6 +49,26 @@ pub enum SupplyStatus {
     OutOfSupply,
 }
 
+/// Organizational size of a unit, largest to smallest (§9.2, §15.53).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
+pub enum Organization {
+    Division,
+    Brigade,
+    Battalion,
+    Company,
+}
+
+impl Organization {
+    pub fn rank(self) -> u8 {
+        match self {
+            Organization::Division => 3,
+            Organization::Brigade => 2,
+            Organization::Battalion => 1,
+            Organization::Company => 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Unit {
     pub id: UnitId,
@@ -79,6 +99,10 @@ pub struct Unit {
     /// `None` once eliminated (or not yet deployed).
     pub hex: Option<Hex>,
     pub has_attacked: bool,
+    /// Organizational size (§15.53).
+    pub organization: Organization,
+    /// Adjusted morale, −3..=+3 (§15.6).
+    pub morale: i8,
 }
 
 impl Unit {
@@ -89,6 +113,8 @@ impl Unit {
         nationality: Nationality,
         kind: UnitType,
         strength: u8,
+        organization: Organization,
+        morale: i8,
         hex: Hex,
     ) -> Self {
         let fuel_capacity = match kind {
@@ -127,6 +153,8 @@ impl Unit {
             water_capacity: 2,
             hex: Some(hex),
             has_attacked: false,
+            organization,
+            morale,
         }
     }
 
