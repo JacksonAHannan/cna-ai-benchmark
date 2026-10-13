@@ -85,7 +85,9 @@ Key rules:
 - Mobile units burn fuel to move; fuel evaporates each turn (3%, 7% for British).
 - Italian units draw extra water for pasta.
 - You may only move/attack units you can see (fog of war); your own units are always visible.
-- A unit can attack once per turn; movement and attacks consume MP."#;
+- A unit can attack once per turn; movement and attacks consume MP.
+
+IMPORTANT: Respond with raw JSON only — no XML, no markdown code fences, no HTML/XML tags, no surrounding prose."#;
 
 pub fn build_user_prompt(obs_json: &str, feedback: Option<&ActionError>) -> String {
     let mut s = format!("Observation:\n{obs_json}");
@@ -98,11 +100,13 @@ pub fn build_user_prompt(obs_json: &str, feedback: Option<&ActionError>) -> Stri
 }
 
 /// Parse a model's action JSON, tolerating wrappers (markdown fences, `<term>`
-/// tags, surrounding prose) by falling back to the first `{...}` object.
+/// tags, surrounding prose, and XML `<parameter name="…">…</parameter>` output).
 pub fn parse_action(content: &str) -> Result<Action, ModelError> {
+    // 1. Direct JSON.
     if let Ok(action) = serde_json::from_str(content) {
         return Ok(action);
     }
+    // 2. First `{...}` object embedded in noise.
     if let (Some(start), Some(end)) = (content.find('{'), content.rfind('}')) {
         if end > start {
             if let Ok(action) = serde_json::from_str(&content[start..=end]) {
@@ -110,8 +114,38 @@ pub fn parse_action(content: &str) -> Result<Action, ModelError> {
             }
         }
     }
+    // 3. XML `<parameter name="key">value</parameter>` form.
+    if let Some(v) = xml_parameters_to_json(content) {
+        if let Ok(action) = serde_json::from_value(v) {
+            return Ok(action);
+        }
+    }
     let snippet: String = content.chars().take(120).collect();
     Err(ModelError::Parse(format!("no valid JSON in: {snippet}…")))
+}
+
+fn xml_parameters_to_json(content: &str) -> Option<serde_json::Value> {
+    let mut obj = serde_json::Map::new();
+    let mut rest = content;
+    while let Some(start) = rest.find("<parameter name=\"") {
+        let after_name = &rest[start + "<parameter name=\"".len()..];
+        let name_end = after_name.find('"')?;
+        let name = &after_name[..name_end];
+        let after_name = &after_name[name_end + 1..];
+        let value_start = after_name.find('>')?;
+        let after_value = &after_name[value_start + 1..];
+        let value_end = after_value.find("</parameter>")?;
+        let raw_value = &after_value[..value_end];
+        let value = serde_json::from_str(raw_value)
+            .unwrap_or_else(|_| serde_json::Value::String(raw_value.to_string()));
+        obj.insert(name.to_string(), value);
+        rest = &after_value[value_end + "</parameter>".len()..];
+    }
+    if obj.is_empty() {
+        None
+    } else {
+        Some(serde_json::Value::Object(obj))
+    }
 }
 
 #[cfg(test)]
@@ -134,5 +168,23 @@ mod tests {
     fn parses_term_wrapped_json() {
         let content = "<term>{\"type\":\"endTurn\"}</termml>";
         assert!(matches!(parse_action(content).unwrap(), Action::EndTurn));
+    }
+
+    #[test]
+    fn parses_xml_parameter_output() {
+        let content = "<types>\n<parameter name=\"type\">attack</parameter>\n<parameter name=\"attacker\">10</parameter>\n<parameter name=\"target\">3</parameter>\n</types>";
+        let action = parse_action(content).unwrap();
+        match action {
+            Action::Attack {
+                attacker,
+                target,
+                air_support,
+            } => {
+                assert_eq!(attacker, 10);
+                assert_eq!(target, 3);
+                assert!(air_support.is_empty());
+            }
+            other => panic!("expected Attack, got {other:?}"),
+        }
     }
 }
