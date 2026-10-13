@@ -22,7 +22,7 @@ implemented.
 | Combat column modifiers | faithful | Terrain shifts, organization (stacking points §9.4/§15.53), morale difference (§15.61), 2:1 raw strength (§15.51), air support |
 | Prisoners / capture | faithful | Shared §15.89 table (10/25/33/50/50/75%) resolves captured fraction of losses |
 | Engaged contact | faithful | Attacker's Engaged result locks both sides in contact; engaged units can only attack |
-| Hex movement + terrain costs | faithful | Exact §8.37 terrain chart: motorized/non-motorized costs, assault-defense shifts |
+| Hex movement + terrain costs | faithful | Exact §8.37 chart: full terrain set (clear/gravel, desert, rough, mountain, salt marsh, heavy vegetation, delta, swamp, escarpment) + motorized/non-motorized costs + assault-defense shifts |
 | Fuel evaporation per turn | faithful | 6% baseline / 9% Commonwealth through Aug 1941 (research-corrected §49.3); hot-weather +5% not modeled |
 | Italian extra water demand ("pasta rule") | faithful | +1 water for Italian battalions; waterless units can't move/attack, defend at half strength |
 | Supply: fuel/ammo/stores/water | faithful | 4 resources, per-depot stock depleted by draw, resource weights (§54.5), truck/dump/rail chart data |
@@ -40,10 +40,10 @@ implemented.
 
 | Subsystem | Status |
 |---|---|
-| Full ~1,800-counter roster and 9.5-ft map | pending (scenarios use reduced but real formations) |
-| Physical truck/dump/well/pipeline delivery | partial (per-depot stock + water sources done; truck/rail/pipeline units pending) |
+| Full ~1,800-counter roster and 9.5-ft map | partial (sources located + terrain legend + 479 hexes + 409 counters transcribed; full transcription ongoing) |
+| Physical truck/dump/well/pipeline delivery | partial (per-depot stock, water sources, truck points done; pipeline construction pending) |
 | Dynamic morale check (§17.4 disorganization table) | pending (static per-unit morale −3..+3; shift = difference is wired) |
-| Per-role *agents* (5v5 Elo) | pending (role partition in observations done; one agent per side) |
+| Per-role *agents* (5v5 Elo) | partial (role partition + team loop + `--teams` done; per-role Elo round-robin config pending) |
 | Client-side WASM engine for interactive replay | pending (Phase 1 = server-authoritative spectator) |
 
 ## Placeholders (not yet sourced from the OB)
