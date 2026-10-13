@@ -23,7 +23,7 @@ public descriptions where exact chart values were not available, marked and judg
 | Ammunition resource | faithful | Ammo points refilled in supply, consumed per attack; no ammo → cannot attack |
 | Water resource | faithful | Water points refilled in supply, consumed per turn (Italian +1 pasta); waterless units can't move/attack and defend at half strength |
 | Hex movement with terrain cost + fuel burn | reconstructed | Terrain costs are plausible values, not CNA's exact MP chart |
-| Differential CRT combat (percentage losses, retreat) | reconstructed | 18-column differential structure faithful; column values reconstructed (`docs/cna-rules.md` §15) |
+| Differential CRT combat (percentage losses, retreat) | faithful | Exact 18-column close-assault CRT transcribed from the archived chart (`docs/data/crt.md`) |
 | Air game: recon, ground support, strategic bombing, interception | reconstructed | Bombing disrupts depot supply; enemy air within 4 hexes intercepts (air-to-air losses); refit/sortie detail not yet modeled |
 | Rear-area reinforcements on schedule | faithful | Reinforcement schedule is scenario data |
 | Fog-of-war: side intel + detection range + air recon | faithful | Per-role *observation partition*; one Agent per side acts for all roles |

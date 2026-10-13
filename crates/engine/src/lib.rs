@@ -7,6 +7,7 @@
 //! submitting side's fog-of-war view.
 
 pub mod action;
+pub mod charts;
 pub mod events;
 pub mod fog;
 pub mod map;

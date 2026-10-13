@@ -627,38 +627,13 @@ impl GameState {
 }
 
 fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> CombatResult {
-    let differential = (attacker as i32 - defender as i32 + shift).clamp(-11, 17);
-    // Median loss percentages by differential column. Structure follows the
-    // published 18-column differential CRT; column VALUES are reconstructed.
-    let (a_med, d_med): (u8, u8) = match differential {
-        ..=-11 => (40, 0),
-        -10..=-8 => (30, 5),
-        -7..=-4 => (25, 5),
-        -3..=-1 => (20, 10),
-        0 => (15, 15),
-        1..=3 => (5, 15),
-        4..=6 => (5, 25),
-        7..=10 => (0, 30),
-        11..=16 => (0, 40),
-        _ => (0, 50), // >= +17 (overrun)
-    };
-    let a = vary(rng, a_med);
-    let d = vary(rng, d_med);
-    let defender_retreats = differential >= 0 && (d_med >= 25 || rng.below(100) < 30);
+    let differential = attacker as i32 - defender as i32 + shift;
+    let o = crate::charts::resolve_crt(rng, differential);
     CombatResult {
-        attacker_loss_pct: a,
-        defender_loss_pct: d,
-        defender_retreats,
+        attacker_loss_pct: o.attacker_loss_pct,
+        defender_loss_pct: o.defender_loss_pct,
+        defender_retreats: o.defender_retreat > 0,
     }
-}
-
-/// Vary a median loss percentage by ±10 points, clamped to 0–50.
-fn vary(rng: &mut Rng, median: u8) -> u8 {
-    if median == 0 {
-        return 0;
-    }
-    let delta = rng.below(21) as i16 - 10;
-    (median as i16 + delta).clamp(0, 50) as u8
 }
 
 #[cfg(test)]
