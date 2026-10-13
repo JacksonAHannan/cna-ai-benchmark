@@ -251,6 +251,64 @@ pub fn prisoner_percent(die: u8) -> u8 {
     PRISONER_PCT[(die.clamp(1, 6) - 1) as usize]
 }
 
+// === Anti-aircraft / flak (§46) ===
+
+/// "Other missions" aircraft destroyed, by flak column (1–10) and sequential roll.
+pub const FLAK_DESTROYED: [&[(u8, u8, u8)]; 10] = [
+    &[(11,55,0),(56,66,1)],
+    &[(11,45,0),(46,65,1),(66,66,2)],
+    &[(11,40,0),(41,62,1),(63,66,2)],
+    &[(11,32,0),(33,56,1),(57,60,0),(61,64,2),(65,66,3)],
+    &[(11,21,0),(22,54,1),(55,55,0),(56,64,2),(65,66,3)],
+    &[(11,12,0),(13,53,1),(54,63,2),(64,66,3)],
+    &[(11,45,1),(46,61,2),(62,65,3),(66,66,4)],
+    &[(11,36,1),(37,40,0),(41,54,2),(55,64,3),(65,66,4)],
+    &[(11,32,1),(33,51,2),(52,62,3),(63,65,4),(66,66,5)],
+    &[(11,24,1),(25,43,2),(44,56,3),(57,60,0),(61,64,4),(65,66,5)],
+];
+
+/// "Other missions" aircraft aborted, by flak column (1–10) and sequential roll.
+pub const FLAK_ABORTED: [&[(u8, u8, u8)]; 10] = [
+    &[(11,53,0),(54,66,1)],
+    &[(11,42,0),(43,64,1),(65,66,2)],
+    &[(11,31,0),(32,62,1),(63,66,2)],
+    &[(11,22,0),(23,55,1),(56,64,2),(65,66,3)],
+    &[(11,13,0),(14,52,1),(53,62,2),(63,65,3),(66,66,4)],
+    &[(11,44,1),(45,55,2),(56,63,3),(64,66,4)],
+    &[(11,31,1),(32,52,2),(53,62,3),(63,66,4)],
+    &[(11,21,1),(22,43,2),(44,55,3),(56,65,4),(66,66,5)],
+    &[(11,12,1),(13,34,2),(35,51,3),(52,63,4),(64,65,5),(66,66,6)],
+    &[(11,26,2),(27,30,0),(31,43,3),(44,54,4),(55,62,5),(63,65,6),(66,66,7)],
+];
+
+/// Flak column (0–9) for a given flak-point total (§46.3), or `None` if none.
+pub fn flak_column(points: u32) -> Option<usize> {
+    match points {
+        0 => None,
+        1..=4 => Some(0),
+        5..=8 => Some(1),
+        9..=12 => Some(2),
+        13..=16 => Some(3),
+        17..=20 => Some(4),
+        21..=24 => Some(5),
+        25..=28 => Some(6),
+        29..=32 => Some(7),
+        33..=36 => Some(8),
+        _ => Some(9),
+    }
+}
+
+/// Resolve flak at a target: (aircraft destroyed, aircraft aborted) (§46).
+pub fn flak_result(points: u32, rng: &mut Rng) -> (u8, u8) {
+    let Some(col) = flak_column(points) else {
+        return (0, 0);
+    };
+    let roll = roll_seq(rng);
+    let destroyed = loss_for(FLAK_DESTROYED[col], roll);
+    let aborted = loss_for(FLAK_ABORTED[col], roll);
+    (destroyed, aborted)
+}
+
 // === Supply/logistics chart (§2, §54) ===
 
 /// Tons per supply point of each resource (§54.5).

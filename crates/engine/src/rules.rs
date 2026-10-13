@@ -602,6 +602,40 @@ impl GameState {
             }
         }
 
+        // AA/flak (§46): flak points in the target hex fire at the squadron.
+        let flak_points: u32 = self
+            .units
+            .values()
+            .filter(|u| !u.eliminated() && u.side != side && u.hex == Some(target))
+            .map(|u| u.aa as u32)
+            .sum();
+        if flak_points > 0 {
+            let (destroyed, aborted) = crate::charts::flak_result(flak_points, &mut self.rng);
+            if destroyed > 0 {
+                self.apply_step_loss(squadron, destroyed);
+                if self.units.get(&squadron).map(|u| u.eliminated()).unwrap_or(true) {
+                    self.log.push(Event::Bomb {
+                        turn: self.turn,
+                        squadron,
+                        target,
+                        intercepted,
+                        supply_hit: 0,
+                    });
+                    return;
+                }
+            }
+            if aborted > 0 {
+                self.log.push(Event::Bomb {
+                    turn: self.turn,
+                    squadron,
+                    target,
+                    intercepted,
+                    supply_hit: 0,
+                });
+                return;
+            }
+        }
+
         let target_is_enemy_depot = self
             .map
             .get(target)

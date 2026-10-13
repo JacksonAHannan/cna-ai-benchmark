@@ -109,6 +109,8 @@ pub struct Unit {
     pub morale: i8,
     /// In contact with the enemy (Engaged, §15.93): cannot move, only attack.
     pub contact: bool,
+    /// Anti-aircraft (flak) points contributed when aircraft attack this hex (§46).
+    pub aa: u8,
 }
 
 impl Unit {
@@ -133,6 +135,11 @@ impl Unit {
             UnitType::Air => 0,
             UnitType::Artillery => 4,
             _ => 3,
+        };
+        // Placeholder AA ratings (full OB AA pending): artillery carries flak.
+        let aa = match kind {
+            UnitType::Artillery => 2,
+            _ => 0,
         };
         Unit {
             id,
@@ -162,6 +169,7 @@ impl Unit {
             organization,
             morale,
             contact: false,
+            aa,
         }
     }
 
