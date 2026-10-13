@@ -26,6 +26,8 @@ pub enum Phase {
 pub struct GameState {
     pub scenario_name: String,
     pub turn_horizon: u32,
+    pub start_year: u32,
+    pub start_month: u32,
     pub seed: u64,
     pub map: Map,
     pub units: HashMap<UnitId, Unit>,
@@ -78,6 +80,8 @@ impl GameState {
         let mut state = GameState {
             scenario_name: scenario.name,
             turn_horizon: scenario.turn_horizon,
+            start_year: scenario.start_year,
+            start_month: scenario.start_month,
             seed,
             map: scenario.map,
             units,
@@ -126,10 +130,14 @@ impl GameState {
         self.place_reinforcements();
         self.stage = 1;
         self.first_this_turn = self.roll_first();
-        self.axis_convoy = self.rng.between(15, 45) as u32;
+        let (year, month) = self.current_month();
+        let tons = crate::charts::monthly_tonnage(year, month, self.rng.between(1, 6) as u8)
+            .unwrap_or(0);
+        // Reduced-scenario scale: port tonnage ÷500 (Tripoli 15,000 t ≈ 30 points).
+        self.axis_convoy = tons / 500;
         self.log.push(Event::Convoy {
             turn: self.turn,
-            tons: self.axis_convoy,
+            tons,
         });
         self.replenish_depots();
         self.log.push(Event::TurnStart {
@@ -231,6 +239,16 @@ impl GameState {
     fn depot_limit(&self, hex: Hex) -> u32 {
         self.depot_capacity(hex)
             .saturating_sub(self.depot_damage.get(&hex).copied().unwrap_or(0))
+    }
+
+    /// Map the 1-based Game-Turn to a (year, month), four weeks per month,
+    /// starting from the scenario's calendar date.
+    fn current_month(&self) -> (u32, u32) {
+        let months_elapsed = self.turn.saturating_sub(1) / 4;
+        let total = self.start_month + months_elapsed; // 1-based
+        let year = self.start_year + (total - 1) / 12;
+        let month = (total - 1) % 12 + 1;
+        (year, month)
     }
 
     /// Replenish each depot's weekly stock. Allies draw on unlimited reserves

@@ -50,6 +50,9 @@ pub struct Scenario {
     pub id: String,
     pub name: String,
     pub turn_horizon: u32,
+    /// Calendar start (year, month 1–12) of Game-Turn 1.
+    pub start_year: u32,
+    pub start_month: u32,
     pub map: Map,
     pub units: Vec<UnitSpec>,
     /// (arrival turn, unit spec). Arrival turn is 1-based, evaluated at turn start.
@@ -138,6 +141,8 @@ pub fn default_scenario() -> Scenario {
         id: "compass".to_string(),
         name: "Operation Compass (reduced)".to_string(),
         turn_horizon: 12,
+        start_year: 1940,
+        start_month: 12,
         map,
         units,
         reinforcements,

@@ -314,3 +314,34 @@ pub const PORT_CAPACITY: [(&str, u32, u32, u32, u32); 10] = [
     ("Derna", 1, u32::MAX, 1, 300),
     ("All others", 1, u32::MAX, u32::MAX, 100),
 ];
+
+/// Monthly capacity-row selection by year 1940–1942, January–December (§56.4).
+/// `None` = no Axis convoy that month.
+pub const NAVAL_TONNAGE_MONTHS: [[Option<char>; 12]; 3] = [
+    [None, None, None, None, None, None, None, None, Some('B'), Some('B'), Some('B'), Some('B')],
+    [Some('B'), Some('E'), Some('F'), Some('E'), Some('D'), Some('G'), Some('C'), Some('E'), Some('C'), Some('D'), Some('E'), Some('A')],
+    [Some('C'), Some('B'), Some('B'), Some('G'), Some('F'), Some('A'), Some('F'), Some('B'), Some('D'), Some('A'), Some('G'), Some('C')],
+];
+
+/// Fixed tons + variable tons per die point for each capacity row (§56.5).
+pub const NAVAL_TONNAGE_ROWS: [(char, u32, u32); 7] = [
+    ('A', 6000, 1000),
+    ('B', 7000, 1500),
+    ('C', 10000, 1500),
+    ('D', 11000, 2000),
+    ('E', 11000, 2500),
+    ('F', 15000, 2000),
+    ('G', 32000, 3000),
+];
+
+/// Available Axis convoy tonnage for a Game-Turn arriving in `month`/`year`
+/// (§56.4–56.5). `None` when no convoy that month.
+pub fn monthly_tonnage(year: u32, month: u32, die: u8) -> Option<u32> {
+    let y = (year as usize).checked_sub(1940)?;
+    let row = NAVAL_TONNAGE_MONTHS.get(y)?.get((month.saturating_sub(1)) as usize)?;
+    let row = (*row)?;
+    let (_, fixed, var) = NAVAL_TONNAGE_ROWS.iter().copied().find(|(r, _, _)| *r == row)?;
+    let tons = fixed + var * die as u32;
+    // Round upward to a multiple of 1000 tons.
+    Some(((tons + 999) / 1000) * 1000)
+}
