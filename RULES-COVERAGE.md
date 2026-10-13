@@ -35,9 +35,8 @@ public descriptions where exact chart values were not available, marked and judg
 |---|---|
 | Full ~1,800-counter roster and 9.5-ft map | pending (scenarios use reduced but real formations) |
 | Full ~70 charts (all CRTs, MP, air, naval) | pending |
-| Naval convoy supply (weekly Axis tonnage roll) | reconstructed | Axis supply = variable weekly convoy tonnage capped by port capacity; Allies stable |
-| Granular air game (sorties, air superiority, interception) | pending |
-| 5-role staff partition (CinC/Logistics/RearArea/Air/FrontLine) | faithful | Observation carries per-role unit scopes; per-role *agents* (5v5 Elo) remains v2 |
+| Air sorties/refit/air-superiority/AA detail | pending (recon/bombing/interception done) |
+| Per-role *agents* (5v5 Elo) | pending (role partition in observations done; one agent per side) |
 | Client-side WASM engine for interactive replay | pending (Phase 1 = server-authoritative spectator) |
 
 ## Reconstruction log
