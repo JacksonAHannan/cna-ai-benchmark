@@ -12,21 +12,13 @@ use crate::unit::{SupplyStatus, UnitId, UnitType};
 /// Range at which a side detects enemy units (hex distance).
 const DETECTION_RANGE: i32 = 2;
 
-/// CRT result classes (attacker perspective).
+/// Differential CRT result (research-corrected; see docs/cna-rules.md §15).
+/// Percentage losses per side, plus whether the defender must retreat.
 #[derive(Debug)]
-enum CombatResult {
-    /// Attacker eliminated.
-    Ae,
-    /// Attacker retreats (with a step loss).
-    Ar,
-    /// Exchange — both lose a step.
-    Ex,
-    /// Defender retreats (with a step loss).
-    Dr,
-    /// Defender eliminated.
-    De,
-    /// No effect.
-    Ne,
+struct CombatResult {
+    attacker_loss_pct: u8,
+    defender_loss_pct: u8,
+    defender_retreats: bool,
 }
 
 impl GameState {
@@ -338,45 +330,20 @@ impl GameState {
             }
         }
         air_shift = air_shift.min(2);
-        let shift = terrain_shift + air_shift;
+        let shift = air_shift - terrain_shift;
 
         let result = combat_result(&mut self.rng, a_str, d_str, shift);
 
-        let a_losses;
-        let d_losses;
-        match result {
-            CombatResult::De => {
-                a_losses = 0;
-                d_losses = t.strength;
-                self.eliminate_unit(target, "combat");
-            }
-            CombatResult::Dr => {
-                a_losses = 0;
-                d_losses = 1;
-                self.apply_step_loss(target, 1);
-                self.retreat_unit(target);
-            }
-            CombatResult::Ex => {
-                a_losses = 1;
-                d_losses = 1;
-                self.apply_step_loss(attacker, 1);
-                self.apply_step_loss(target, 1);
-            }
-            CombatResult::Ar => {
-                a_losses = 1;
-                d_losses = 0;
-                self.apply_step_loss(attacker, 1);
-                self.retreat_unit(attacker);
-            }
-            CombatResult::Ae => {
-                a_losses = a.strength;
-                d_losses = 0;
-                self.eliminate_unit(attacker, "combat");
-            }
-            CombatResult::Ne => {
-                a_losses = 0;
-                d_losses = 0;
-            }
+        // Percentage casualties → step losses (attacker rounds up, defender down).
+        let a_losses = ((a_str * result.attacker_loss_pct as u32 + 99) / 100) as u8;
+        let d_losses = ((d_str * result.defender_loss_pct as u32) / 100) as u8;
+
+        self.apply_step_loss(attacker, a_losses);
+        self.apply_step_loss(target, d_losses);
+        if result.defender_retreats
+            && !self.units.get(&target).map(|u| u.eliminated()).unwrap_or(true)
+        {
+            self.retreat_unit(target);
         }
 
         // Attacker expends its attack.
@@ -390,7 +357,7 @@ impl GameState {
             defender: target,
             odds_numerator: a_str,
             odds_denominator: d_str,
-            result: format!("{result:?}"),
+            result: format!("diff {shift:+}"),
             attacker_losses: a_losses,
             defender_losses: d_losses,
         });
@@ -519,47 +486,36 @@ impl GameState {
 }
 
 fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> CombatResult {
-    let mut ratio = attacker as f64 / (defender.max(1) as f64);
-    if shift >= 0 {
-        ratio *= 2f64.powi(shift);
-    } else {
-        ratio /= 2f64.powi(-shift);
+    let differential = (attacker as i32 - defender as i32 + shift).clamp(-11, 17);
+    // Median loss percentages by differential column. Structure follows the
+    // published 18-column differential CRT; column VALUES are reconstructed.
+    let (a_med, d_med): (u8, u8) = match differential {
+        ..=-11 => (40, 0),
+        -10..=-8 => (30, 5),
+        -7..=-4 => (25, 5),
+        -3..=-1 => (20, 10),
+        0 => (15, 15),
+        1..=3 => (5, 15),
+        4..=6 => (5, 25),
+        7..=10 => (0, 30),
+        11..=16 => (0, 40),
+        _ => (0, 50), // >= +17 (overrun)
+    };
+    let a = vary(rng, a_med);
+    let d = vary(rng, d_med);
+    let defender_retreats = differential >= 0 && (d_med >= 25 || rng.below(100) < 30);
+    CombatResult {
+        attacker_loss_pct: a,
+        defender_loss_pct: d,
+        defender_retreats,
     }
+}
 
-    let roll = rng.below(100);
-    if ratio >= 3.0 {
-        if roll < 70 {
-            CombatResult::De
-        } else {
-            CombatResult::Dr
-        }
-    } else if ratio >= 2.0 {
-        if roll < 40 {
-            CombatResult::De
-        } else if roll < 80 {
-            CombatResult::Dr
-        } else {
-            CombatResult::Ex
-        }
-    } else if ratio >= 1.0 {
-        if roll < 40 {
-            CombatResult::Ex
-        } else if roll < 65 {
-            CombatResult::Dr
-        } else {
-            CombatResult::Ar
-        }
-    } else if ratio >= 0.5 {
-        if roll < 50 {
-            CombatResult::Ar
-        } else if roll < 80 {
-            CombatResult::Ex
-        } else {
-            CombatResult::Ne
-        }
-    } else if roll < 30 {
-        CombatResult::Ae
-    } else {
-        CombatResult::Ar
+/// Vary a median loss percentage by ±10 points, clamped to 0–50.
+fn vary(rng: &mut Rng, median: u8) -> u8 {
+    if median == 0 {
+        return 0;
     }
+    let delta = rng.below(21) as i16 - 10;
+    (median as i16 + delta).clamp(0, 50) as u8
 }

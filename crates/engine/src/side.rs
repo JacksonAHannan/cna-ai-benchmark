@@ -46,6 +46,16 @@ impl Nationality {
     pub fn needs_pasta_water(self) -> bool {
         matches!(self, Nationality::Italian)
     }
+
+    /// Fuel evaporation % per Game-Turn (research-corrected — the popular 3%/7%
+    /// account is not the printed rule; see docs/cna-rules.md §49.3). Commonwealth
+    /// (British + Commonwealth) 9%, all others 6%.
+    pub fn fuel_evaporation_percent(self) -> u8 {
+        match self {
+            Nationality::British | Nationality::Commonwealth => 9,
+            Nationality::German | Nationality::Italian => 6,
+        }
+    }
 }
 
 impl std::fmt::Display for Nationality {

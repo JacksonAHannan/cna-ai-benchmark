@@ -32,6 +32,7 @@ pub struct GameState {
     pub turn: u32,
     pub phase: Phase,
     pub active: Side,
+    pub(crate) first_this_turn: Side,
     pub winner: Option<Side>,
     pub game_over: bool,
     pub log: EventLog,
@@ -61,6 +62,13 @@ impl GameState {
             next_id += 1;
         }
 
+        let mut rng = Rng::new(seed);
+        let first = if rng.below(2) == 0 {
+            Side::Allied
+        } else {
+            Side::Axis
+        };
+
         let mut state = GameState {
             scenario_name: scenario.name,
             turn_horizon: scenario.turn_horizon,
@@ -69,11 +77,12 @@ impl GameState {
             units,
             turn: 1,
             phase: Phase::Supply,
-            active: Side::Allied,
+            active: first,
+            first_this_turn: first,
             winner: None,
             game_over: false,
             log: EventLog::default(),
-            rng: Rng::new(seed),
+            rng,
             next_unit_id: next_id,
             recon: HashMap::from([
                 (Side::Allied, HashSet::new()),
@@ -112,15 +121,21 @@ impl GameState {
         if self.check_elimination() {
             return;
         }
-        if self.active == Side::Axis {
+        if self.active == self.first_this_turn.other() {
+            // Both sides have gone this turn; advance and roll fresh initiative.
             if self.turn >= self.turn_horizon {
                 self.resolve_horizon();
                 return;
             }
-            self.active = Side::Allied;
             self.turn += 1;
+            self.first_this_turn = if self.rng.below(2) == 0 {
+                Side::Allied
+            } else {
+                Side::Axis
+            };
+            self.active = self.first_this_turn;
         } else {
-            self.active = Side::Axis;
+            self.active = self.first_this_turn.other();
         }
         self.begin_side_turn();
     }
@@ -270,13 +285,10 @@ impl GameState {
                 unit.fuel = unit.fuel_capacity;
             }
 
-            // CNA signature: fuel evaporates — 3% normally, 7% British (drum storage).
+            // CNA signature: fuel evaporates each Game-Turn (research-corrected
+            // 6% baseline / 9% Commonwealth).
             if unit.fuel > 0 {
-                let rate: u8 = if unit.nationality == crate::side::Nationality::British {
-                    7
-                } else {
-                    3
-                };
+                let rate: u8 = unit.nationality.fuel_evaporation_percent();
                 let amount = ((unit.fuel as u32 * rate as u32 + 99) / 100) as u8;
                 let amount = amount.max(1);
                 unit.fuel = unit.fuel.saturating_sub(amount);
