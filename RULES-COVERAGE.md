@@ -27,11 +27,13 @@ implemented.
 | Italian extra water demand ("pasta rule") | faithful | +1 water for Italian battalions; waterless units can't move/attack, defend at half strength |
 | Supply: fuel/ammo/stores/water | faithful | 4 resources, per-depot stock depleted by draw, resource weights (§54.5), truck/dump/rail chart data |
 | Water sources | faithful | Oases and major cities provide unlimited water (§52); wells/pipelines pending |
+| Truck delivery | faithful | Truck points extend supply delivery beyond trace range (§54), replenished weekly |
 | Air: squadrons, refit, sorties | faithful | Squadron ready/reserve capacities (§35.23), refit table (§38.37), per-turn sorties |
 | Air: air-to-air, scramble, bombing, AA | faithful | TacAir kill table (§45.5), scramble by distance (§40.4), supply-dump bombing table (§41.5), flak bands + destroyed/aborted (§46) |
 | Naval: convoy tonnage + lanes | faithful | Monthly tonnage chart (§56.4–5), 6 lanes, port capacity table (§55.3) |
 | Rear-area reinforcements on schedule | faithful | Reinforcement schedule is scenario data |
 | Fog-of-war: side intel + detection + air recon | faithful | Per-role *observation partition*; one Agent per side acts for all roles |
+| Team play (5v5) | faithful | Five roles per side (`Role::controls`), role-scoped observations, `run_streaming_team` loop |
 | Victory: objective control at horizon / elimination | reconstructed | Scenario-defined; CNA's own scenarios vary |
 
 ## Not yet implemented (later phases)
