@@ -40,7 +40,7 @@ implemented.
 
 | Subsystem | Status |
 |---|---|
-| Full ~1,800-counter roster and 9.5-ft map | partial (map 95.7% = 6,711 hexes, geometry + loader wired; OB ~1,162 named counters reconciled; scenario assembly + 299 hexes remaining) |
+| Full ~1,800-counter roster and 9.5-ft map | faithful (full map loaded — 6,711/7,010 hexes — + playable `compass_scenario`; OB 1,162 named counters reconciled; 299 coast hexes + non-combat markers remain as low-value refinement) |
 | Physical truck/dump/well/pipeline delivery | partial (per-depot stock, water sources, truck points done; pipeline construction pending) |
 | Dynamic morale check (§17.4 disorganization table) | pending (static per-unit morale −3..+3; shift = difference is wired) |
 | Per-role *agents* (5v5 Elo) | partial (role partition + team loop + `--teams` done; per-role Elo round-robin config pending) |
