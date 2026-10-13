@@ -4,12 +4,18 @@ import { hexPath, hexToPixel, mapBounds } from '../layout';
 
 const TERRAIN_COLOR: Record<string, string> = {
   Sea: 'var(--sea)',
+  Clear: 'var(--village)',
   Desert: 'var(--sand)',
-  Road: 'var(--road)',
-  Coast: 'var(--coast)',
+  Rough: '#9a7a4e',
+  Mountain: '#6a4a30',
+  SaltMarsh: '#7a9a8a',
   Escarpment: 'var(--escarp)',
+  Road: 'var(--road)',
+  Track: '#a08a58',
+  Coast: 'var(--coast)',
   Oasis: 'var(--oasis)',
   Village: 'var(--village)',
+  MajorCity: '#b0a080',
 };
 
 interface Props {

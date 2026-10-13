@@ -1,5 +1,18 @@
 export type Side = 'Allied' | 'Axis';
-export type Terrain = 'Sea' | 'Desert' | 'Road' | 'Coast' | 'Escarpment' | 'Oasis' | 'Village';
+export type Terrain =
+  | 'Sea'
+  | 'Clear'
+  | 'Desert'
+  | 'Rough'
+  | 'Mountain'
+  | 'SaltMarsh'
+  | 'Escarpment'
+  | 'Road'
+  | 'Track'
+  | 'Coast'
+  | 'Oasis'
+  | 'Village'
+  | 'MajorCity';
 
 export interface Hex {
   q: number;

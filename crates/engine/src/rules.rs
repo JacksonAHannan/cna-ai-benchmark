@@ -345,7 +345,7 @@ impl GameState {
         let terrain_shift = self
             .map
             .get(t.hex.unwrap())
-            .map(|m| m.terrain.defense() as i32)
+            .map(|m| m.terrain.assault_defense() as i32)
             .unwrap_or(0);
 
         let mut air_shift = 0i32;

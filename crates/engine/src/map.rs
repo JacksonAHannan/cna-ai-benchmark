@@ -52,42 +52,66 @@ impl Hex {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum Terrain {
     Sea,
+    Clear,
     Desert,
-    Road,
-    Coast,
+    Rough,
+    Mountain,
+    SaltMarsh,
     Escarpment,
+    Road,
+    Track,
+    Coast,
     Oasis,
     Village,
+    MajorCity,
 }
 
 impl Terrain {
-    /// Movement cost in CP (research values §8.37; motorized costs more off-road).
+    /// Movement cost in CP (published §8.37 chart; motorized costs more off-road).
     pub fn move_cost(self, motorized: bool) -> u8 {
         match self {
             Terrain::Sea => u8::MAX,
-            Terrain::Road | Terrain::Coast => 1,
-            Terrain::Village => 2,
-            Terrain::Desert | Terrain::Oasis => {
+            Terrain::Clear | Terrain::Village => 2,
+            Terrain::Desert | Terrain::Oasis | Terrain::Rough => {
                 if motorized {
                     4
                 } else {
                     3
                 }
             }
+            Terrain::Mountain => {
+                if motorized {
+                    6
+                } else {
+                    4
+                }
+            }
+            Terrain::SaltMarsh => {
+                if motorized {
+                    2
+                } else {
+                    3
+                }
+            }
+            // Up-escarpment: +6 non-motorized, prohibited for motorized.
             Terrain::Escarpment => {
                 if motorized {
-                    10
+                    u8::MAX
                 } else {
                     6
                 }
             }
+            Terrain::Road | Terrain::Coast | Terrain::Track | Terrain::MajorCity => 1,
         }
     }
 
-    /// CRT defensive shift applied to a defender in this terrain.
-    pub fn defense(self) -> i8 {
+    /// Close-assault column shift favoring the defender (positive = L columns).
+    pub fn assault_defense(self) -> i8 {
         match self {
-            Terrain::Escarpment => 1,
+            Terrain::Rough => 2,
+            Terrain::Mountain => 3,
+            Terrain::Escarpment => 3,
+            Terrain::SaltMarsh => -1, // R1 favors the attacker
             _ => 0,
         }
     }
@@ -105,24 +129,36 @@ impl Terrain {
     pub fn code(self) -> char {
         match self {
             Terrain::Sea => 'S',
+            Terrain::Clear => '.',
             Terrain::Desert => 'D',
-            Terrain::Road => 'R',
-            Terrain::Coast => 'C',
+            Terrain::Rough => 'G',
+            Terrain::Mountain => 'M',
+            Terrain::SaltMarsh => 'L',
             Terrain::Escarpment => 'E',
+            Terrain::Road => 'R',
+            Terrain::Track => 'T',
+            Terrain::Coast => 'C',
             Terrain::Oasis => 'O',
             Terrain::Village => 'V',
+            Terrain::MajorCity => 'K',
         }
     }
 
     pub fn from_code(c: char) -> Terrain {
         match c {
             'S' => Terrain::Sea,
+            '.' => Terrain::Clear,
             'D' => Terrain::Desert,
-            'R' => Terrain::Road,
-            'C' => Terrain::Coast,
+            'G' => Terrain::Rough,
+            'M' => Terrain::Mountain,
+            'L' => Terrain::SaltMarsh,
             'E' => Terrain::Escarpment,
+            'R' => Terrain::Road,
+            'T' => Terrain::Track,
+            'C' => Terrain::Coast,
             'O' => Terrain::Oasis,
             'V' => Terrain::Village,
+            'K' => Terrain::MajorCity,
             _ => Terrain::Desert,
         }
     }

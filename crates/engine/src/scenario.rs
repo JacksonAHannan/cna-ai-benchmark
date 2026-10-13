@@ -63,6 +63,13 @@ pub fn default_scenario() -> Scenario {
     map.fill_terrain(2..3, 2..26, Terrain::Road);
     // Escarpment line (Libyan plateau) — channels movement toward the coast road.
     map.fill_terrain(7..10, 4..24, Terrain::Escarpment);
+    // Inland desert track (secondary route).
+    map.fill_terrain(5..6, 8..22, Terrain::Track);
+    // Rough and mountain patches (the Jebel).
+    map.set_terrain(6, 12, Terrain::Rough);
+    map.set_terrain(6, 16, Terrain::Rough);
+    map.set_terrain(6, 14, Terrain::Mountain);
+    map.set_terrain(6, 18, Terrain::Mountain);
     // Oases and villages.
     map.set_terrain(5, 5, Terrain::Oasis);
     map.set_terrain(5, 21, Terrain::Oasis);
