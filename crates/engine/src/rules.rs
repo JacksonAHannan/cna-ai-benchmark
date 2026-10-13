@@ -654,8 +654,26 @@ mod tests {
             .apply(side, &Action::Bomb { squadron, target: depot })
             .is_ok());
         let after = state.depot_damage.get(&depot).copied().unwrap_or(0);
-        assert!(after > before, "depot damage should increase after a bomb");
+        // Damage follows the supply-dump bombing table (§41.5): a single squadron
+        // (bomb points 9–12, lowest column) loses 0% on 11–62 and 10% on 63–66,
+        // so damage never decreases and only occasionally increases.
+        assert!(after >= before, "bomb damage must not decrease");
         assert!(state.log.events.iter().any(|e| matches!(e, Event::Bomb { .. })));
+    }
+
+    #[test]
+    fn bombing_table_matches_published() {
+        use crate::charts::bomb_supply_loss;
+        // Lowest column (1–20 bomb points): 0% for 11–62, 10% for 63–66.
+        assert_eq!(bomb_supply_loss(12, 11), 0);
+        assert_eq!(bomb_supply_loss(12, 62), 0);
+        assert_eq!(bomb_supply_loss(12, 63), 10);
+        assert_eq!(bomb_supply_loss(12, 66), 10);
+        // 471+ column: 30% low, 40% mid, 50% high-mid, 75% top.
+        assert_eq!(bomb_supply_loss(500, 11), 30);
+        assert_eq!(bomb_supply_loss(500, 40), 40);
+        assert_eq!(bomb_supply_loss(500, 63), 50);
+        assert_eq!(bomb_supply_loss(500, 66), 75);
     }
 
     #[test]

@@ -105,7 +105,7 @@ pub fn default_scenario() -> Scenario {
         UnitSpec::new("4th Indian Division", allied, cw, UnitType::Infantry, 6, 3, 21),
         UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 5, 3, 21),
         UnitSpec::new("Western Desert Force Arty", allied, br, UnitType::Artillery, 3, 3, 21),
-        UnitSpec::new("RAF No.202 Group", allied, br, UnitType::Air, 4, 3, 25),
+        UnitSpec::new("RAF No.202 Group", allied, br, UnitType::Air, 12, 3, 25),
         UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 5, 3, 22),
         UnitSpec::new("9th Australian Division", allied, cw, UnitType::Infantry, 5, 4, 22),
         // Axis: Panzergruppe Afrika + Italian Tenth Army (west, Tripoli / Benghazi).
@@ -117,7 +117,7 @@ pub fn default_scenario() -> Scenario {
         UnitSpec::new("10th Army Infantry", axis, ita, UnitType::Infantry, 5, 3, 10),
         UnitSpec::new("Brescia Division", axis, ita, UnitType::Infantry, 4, 4, 9),
         UnitSpec::new("Pavia Division", axis, ita, UnitType::Infantry, 3, 4, 10),
-        UnitSpec::new("Regia Aeronautica", axis, ita, UnitType::Air, 3, 3, 3),
+        UnitSpec::new("Regia Aeronautica", axis, ita, UnitType::Air, 9, 3, 3),
     ];
 
     let reinforcements = vec![

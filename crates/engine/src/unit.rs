@@ -109,7 +109,11 @@ impl Unit {
             nationality,
             kind,
             strength,
-            max_strength: strength,
+            max_strength: if kind == UnitType::Air {
+                nationality.squadron_capacity().1
+            } else {
+                strength
+            },
             movement: kind.movement_allowance(),
             movement_allowance: kind.movement_allowance(),
             fuel: fuel_capacity,

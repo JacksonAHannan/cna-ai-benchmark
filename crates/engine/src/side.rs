@@ -56,6 +56,15 @@ impl Nationality {
             Nationality::German | Nationality::Italian => 6,
         }
     }
+
+    /// Squadron ready/total aircraft (§35.23): (ready, total incl. reserve).
+    /// 1940–41 Commonwealth values (12 ready / 16 total); Italian 9/12, German 12/16.
+    pub fn squadron_capacity(self) -> (u8, u8) {
+        match self {
+            Nationality::Italian => (9, 12),
+            Nationality::British | Nationality::Commonwealth | Nationality::German => (12, 16),
+        }
+    }
 }
 
 impl std::fmt::Display for Nationality {
