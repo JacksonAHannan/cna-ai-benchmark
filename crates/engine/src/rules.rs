@@ -558,9 +558,14 @@ impl GameState {
 
         let mut supply_hit = 0;
         if target_is_enemy_depot {
-            let dmg = self.depot_damage.entry(target).or_insert(0);
-            *dmg += 2;
-            supply_hit = 2;
+            let points = self.units.get(&squadron).map(|u| u.strength as u32).unwrap_or(1);
+            let loss = crate::charts::bomb_supply_loss(points, crate::charts::roll_seq(&mut self.rng));
+            if loss > 0 {
+                let hit = (loss / 10).max(1) as u32;
+                let dmg = self.depot_damage.entry(target).or_insert(0);
+                *dmg += hit;
+                supply_hit = hit;
+            }
         }
 
         self.log.push(Event::Bomb {
