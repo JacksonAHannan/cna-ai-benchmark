@@ -46,8 +46,14 @@ pub struct GameState {
     pub(crate) depot_damage: HashMap<Hex, u32>,
     pub(crate) axis_convoy: u32,
     pub(crate) depot_stock: HashMap<Hex, u32>,
+    pub(crate) trucks: HashMap<Side, u32>,
     pub(crate) reinforcements: Vec<(u32, UnitSpec)>,
 }
+
+/// Truck delivery range in hexes (a reduced-scenario abstraction of truck CP).
+const TRUCK_RANGE: i32 = 12;
+/// Per-side truck points, replenished weekly (§54).
+const TRUCK_POOL: [(Side, u32); 2] = [(Side::Allied, 6), (Side::Axis, 4)];
 
 impl GameState {
     pub fn new(scenario: Scenario, seed: u64) -> Self {
@@ -102,6 +108,7 @@ impl GameState {
             depot_damage: HashMap::new(),
             axis_convoy: 0,
             depot_stock: HashMap::new(),
+            trucks: HashMap::from(TRUCK_POOL),
             reinforcements: scenario.reinforcements,
         };
 
@@ -140,6 +147,9 @@ impl GameState {
             tons,
         });
         self.replenish_depots();
+        for (s, n) in TRUCK_POOL {
+            self.trucks.insert(s, n);
+        }
         self.log.push(Event::TurnStart {
             turn: self.turn,
             side: self.first_this_turn,
@@ -328,15 +338,25 @@ impl GameState {
                 (unit.hex.unwrap(), demand, unit.name.clone())
             };
 
-            // Draw from the nearest depot that both traces to this unit and has stock.
+            // Draw from the nearest depot that traces to this unit (or that a
+            // truck can reach) and has stock. Truck delivery consumes a truck point.
             let mut in_supply = false;
             for &d in &depots {
-                if !self.traces_to(hex, d) {
+                let traced = self.traces_to(hex, d);
+                let by_truck = !traced
+                    && self.trucks.get(&side).copied().unwrap_or(0) > 0
+                    && hex.distance(d) <= TRUCK_RANGE;
+                if !traced && !by_truck {
                     continue;
                 }
                 if let Some(stock) = self.depot_stock.get_mut(&d) {
                     if *stock >= demand {
                         *stock -= demand;
+                        if by_truck {
+                            if let Some(t) = self.trucks.get_mut(&side) {
+                                *t = t.saturating_sub(1);
+                            }
+                        }
                         in_supply = true;
                         break;
                     }
