@@ -228,3 +228,39 @@ fn bomb_column(points: u32) -> usize {
 pub fn bomb_supply_loss(points: u32, roll: u8) -> u8 {
     loss_for(BOMB_SUPPLY[bomb_column(points)], roll)
 }
+
+// === Supply/logistics chart (§2, §54) ===
+
+/// Tons per supply point of each resource (§54.5).
+pub const FUEL_TONS: f64 = 1.0 / 8.0;
+pub const AMMO_TONS: f64 = 4.0;
+pub const STORES_TONS: f64 = 1.0;
+pub const WATER_TONS: f64 = 1.0 / 6.0;
+
+/// Carrying capacity of one truck point (alternatives, not additive; §54).
+pub struct TruckCapacity {
+    pub infantry: f64, // TOE points (light carries 1/2)
+    pub guns: u32,     // 0 = prohibited
+    pub aa: u32,
+    pub ammo: u32,
+    pub fuel: u32,
+    pub stores: u32,
+    pub water: u32,
+    pub own_fuel: u32,
+}
+
+pub const TRUCK_CAPACITY: [TruckCapacity; 3] = [
+    TruckCapacity { infantry: 0.5, guns: 0, aa: 1, ammo: 2, fuel: 50, stores: 6, water: 40, own_fuel: 8 },
+    TruckCapacity { infantry: 1.0, guns: 1, aa: 2, ammo: 4, fuel: 120, stores: 15, water: 100, own_fuel: 6 },
+    TruckCapacity { infantry: 2.0, guns: 1, aa: 4, ammo: 8, fuel: 250, stores: 30, water: 200, own_fuel: 6 },
+];
+
+/// Maximum dump stock, order ammo/fuel/stores/water, by location class (§54).
+pub const DUMP_MAXIMA: [[u32; 4]; 3] = [
+    [2500, 8000, 3000, 1000],                                 // village
+    [1500, 5000, 1000, 1000],                                 // other terrain
+    [u32::MAX, u32::MAX, u32::MAX, u32::MAX],                 // major city / Tripoli / Tunis
+];
+
+/// Commonwealth rail tonnage per Operations Stage (§54).
+pub const RAIL_TONS: u32 = 1500;

@@ -43,6 +43,7 @@ pub struct GameState {
     pub(crate) recon: HashMap<Side, HashSet<Hex>>,
     pub(crate) depot_damage: HashMap<Hex, u32>,
     pub(crate) axis_convoy: u32,
+    pub(crate) depot_stock: HashMap<Hex, u32>,
     pub(crate) reinforcements: Vec<(u32, UnitSpec)>,
 }
 
@@ -94,6 +95,7 @@ impl GameState {
             ]),
             depot_damage: HashMap::new(),
             axis_convoy: 0,
+            depot_stock: HashMap::new(),
             reinforcements: scenario.reinforcements,
         };
 
@@ -127,6 +129,7 @@ impl GameState {
             turn: self.turn,
             tons: self.axis_convoy,
         });
+        self.replenish_depots();
         self.log.push(Event::TurnStart {
             turn: self.turn,
             side: self.first_this_turn,
@@ -221,6 +224,42 @@ impl GameState {
             .unwrap_or(0)
     }
 
+    fn depot_limit(&self, hex: Hex) -> u32 {
+        self.depot_capacity(hex)
+            .saturating_sub(self.depot_damage.get(&hex).copied().unwrap_or(0))
+    }
+
+    /// Replenish each depot's weekly stock. Allies draw on unlimited reserves
+    /// (bounded by port capacity); Axis supply arrives by sea and is allocated
+    /// proportionally to port capacity, capped by the weekly convoy tonnage.
+    fn replenish_depots(&mut self) {
+        self.depot_stock.clear();
+        let axis_depots = self.map.depots_of(Side::Axis);
+        let axis_cap: u32 = axis_depots.iter().map(|&d| self.depot_limit(d)).sum();
+        for &d in &self.map.depots {
+            let cap = self.depot_limit(d);
+            let side = self
+                .map
+                .get(d)
+                .and_then(|m| m.site.as_ref())
+                .map(|s| match s {
+                    Site::Depot { side, .. } => *side,
+                    _ => Side::Axis,
+                })
+                .unwrap_or(Side::Axis);
+            let stock = if side == Side::Axis {
+                if axis_cap > 0 {
+                    ((self.axis_convoy as u64 * cap as u64) / axis_cap as u64) as u32
+                } else {
+                    0
+                }
+            } else {
+                cap
+            };
+            self.depot_stock.insert(d, stock);
+        }
+    }
+
     /// A unit can trace supply to a depot if it is on the depot, both are on the
     /// road/coast network, or the depot is within the off-road radius.
     fn traces_to(&self, unit_hex: Hex, depot: Hex) -> bool {
@@ -240,23 +279,9 @@ impl GameState {
     fn run_supply(&mut self) {
         let side = self.active;
         let depots = self.map.depots_of(side);
-        let port_capacity: u32 = depots
-            .iter()
-            .map(|&d| {
-                self.depot_capacity(d)
-                    .saturating_sub(self.depot_damage.get(&d).copied().unwrap_or(0))
-            })
-            .sum();
-        // Axis supply arrives by sea (variable convoys); Allies draw on unlimited
-        // reserves but remain bounded by port capacity.
-        let capacity = if side == Side::Axis {
-            port_capacity.min(self.axis_convoy)
-        } else {
-            port_capacity
-        };
 
-        // Sort active-side units nearest-to-depot first so that, when demand
-        // exceeds capacity, the farthest units starve first (faithful to logistics).
+        // Sort units nearest-to-depot first so that, when a depot's stock runs
+        // out, the farthest units starve first (physical delivery).
         let mut ids: Vec<UnitId> = self
             .units
             .values()
@@ -272,7 +297,6 @@ impl GameState {
                 .unwrap_or(i32::MAX)
         });
 
-        let mut remaining = capacity;
         for id in ids {
             let (hex, demand, name) = {
                 let unit = self.units.get(&id).unwrap();
@@ -281,11 +305,22 @@ impl GameState {
                 let demand = unit.stores_draw() + unit.water_draw() + fuel_need + ammo_need;
                 (unit.hex.unwrap(), demand, unit.name.clone())
             };
-            let traced = depots.iter().any(|&d| self.traces_to(hex, d));
-            let in_supply = traced && demand <= remaining;
-            if in_supply {
-                remaining -= demand;
+
+            // Draw from the nearest depot that both traces to this unit and has stock.
+            let mut in_supply = false;
+            for &d in &depots {
+                if !self.traces_to(hex, d) {
+                    continue;
+                }
+                if let Some(stock) = self.depot_stock.get_mut(&d) {
+                    if *stock >= demand {
+                        *stock -= demand;
+                        in_supply = true;
+                        break;
+                    }
+                }
             }
+
             let unit = self.units.get_mut(&id).unwrap();
             unit.supply = if in_supply {
                 SupplyStatus::InSupply
