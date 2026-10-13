@@ -100,6 +100,32 @@ impl Terrain {
     pub fn is_road_network(self) -> bool {
         matches!(self, Terrain::Road | Terrain::Coast)
     }
+
+    /// One-char code for the compact serialized terrain grid.
+    pub fn code(self) -> char {
+        match self {
+            Terrain::Sea => 'S',
+            Terrain::Desert => 'D',
+            Terrain::Road => 'R',
+            Terrain::Coast => 'C',
+            Terrain::Escarpment => 'E',
+            Terrain::Oasis => 'O',
+            Terrain::Village => 'V',
+        }
+    }
+
+    pub fn from_code(c: char) -> Terrain {
+        match c {
+            'S' => Terrain::Sea,
+            'D' => Terrain::Desert,
+            'R' => Terrain::Road,
+            'C' => Terrain::Coast,
+            'E' => Terrain::Escarpment,
+            'O' => Terrain::Oasis,
+            'V' => Terrain::Village,
+            _ => Terrain::Desert,
+        }
+    }
 }
 
 /// A named feature on a hex. Depots are supply sources; objectives are victory points.
@@ -140,16 +166,41 @@ pub struct Map {
 }
 
 impl Map {
+    /// O(1) lookup: the `Vec` is stored in row-major offset order.
     pub fn get(&self, hex: Hex) -> Option<&MapHex> {
-        self.hexes.iter().find(|h| h.hex == hex)
+        let (row, col) = hex.to_offset();
+        if row < 0 || row >= self.rows || col < 0 || col >= self.cols {
+            return None;
+        }
+        Some(&self.hexes[(row * self.cols + col) as usize])
     }
 
     pub fn get_mut(&mut self, hex: Hex) -> Option<&mut MapHex> {
-        self.hexes.iter_mut().find(|h| h.hex == hex)
+        let (row, col) = hex.to_offset();
+        if row < 0 || row >= self.rows || col < 0 || col >= self.cols {
+            return None;
+        }
+        Some(&mut self.hexes[(row * self.cols + col) as usize])
     }
 
     pub fn in_bounds(&self, hex: Hex) -> bool {
-        self.get(hex).is_some()
+        let (row, col) = hex.to_offset();
+        row >= 0 && row < self.rows && col >= 0 && col < self.cols
+    }
+
+    /// Compact serialized terrain: one string per offset row, one char per hex.
+    pub fn terrain_grid(&self) -> Vec<String> {
+        let mut rows = Vec::with_capacity(self.rows as usize);
+        for row in 0..self.rows {
+            let mut s = String::with_capacity(self.cols as usize);
+            for col in 0..self.cols {
+                let hex = Hex::from_offset(row, col);
+                let t = self.get(hex).map(|m| m.terrain).unwrap_or(Terrain::Sea);
+                s.push(t.code());
+            }
+            rows.push(s);
+        }
+        rows
     }
 
     /// Build an all-sea grid of `rows` x `cols` (odd-r offset).

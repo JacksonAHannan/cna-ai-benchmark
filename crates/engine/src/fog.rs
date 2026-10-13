@@ -1,7 +1,7 @@
 //! Fog-of-war observations: what a side may see.
 
 use crate::events::Event;
-use crate::map::{Hex, Map, Site};
+use crate::map::{Hex, Site};
 use crate::side::Side;
 use crate::state::GameState;
 use crate::unit::{Unit, UnitId, UnitType};
@@ -42,8 +42,9 @@ pub struct Observation {
     pub viewer: Side,
     pub game_over: bool,
     pub winner: Option<Side>,
-    /// Terrain and sites are public (fog-of-war hides units, not geography).
-    pub map: Map,
+    /// Compact terrain grid (offset rows, char codes). Fog-of-war hides units,
+    /// not geography; terrain is public and cheap to serialize.
+    pub terrain: Vec<String>,
     /// Visible units: the side's own units in full, enemy units only if detected
     /// (within detection range or in a reconnoitered hex).
     pub units: Vec<Unit>,
@@ -103,32 +104,48 @@ impl GameState {
             .rev()
             .collect();
 
-        let mut role_views = Vec::new();
-        for role in [Role::CinC, Role::Logistics, Role::RearArea, Role::Air, Role::FrontLine] {
-            let ids: Vec<UnitId> = units
-                .iter()
-                .filter(|u| match role {
-                    Role::Air => u.kind == UnitType::Air,
-                    Role::FrontLine => u.kind != UnitType::Air,
-                    Role::Logistics => u.side == side,
-                    Role::CinC => true,
-                    Role::RearArea => false,
-                })
-                .map(|u| u.id)
-                .collect();
-            let note = match role {
-                Role::CinC => "overall command".to_string(),
-                Role::Logistics => "supply, fuel, water".to_string(),
-                Role::RearArea => "reinforcements & rear".to_string(),
-                Role::Air => "air squadrons".to_string(),
-                Role::FrontLine => "ground forces".to_string(),
-            };
-            role_views.push(RoleView {
-                role,
-                note,
-                units: ids,
-            });
+        let mut cinc = Vec::new();
+        let mut air = Vec::new();
+        let mut front = Vec::new();
+        let mut logistics = Vec::new();
+        for u in &units {
+            cinc.push(u.id);
+            if u.kind == UnitType::Air {
+                air.push(u.id);
+            } else {
+                front.push(u.id);
+            }
+            if u.side == side {
+                logistics.push(u.id);
+            }
         }
+        let role_views = vec![
+            RoleView {
+                role: Role::CinC,
+                note: "overall command".to_string(),
+                units: cinc,
+            },
+            RoleView {
+                role: Role::Logistics,
+                note: "supply, fuel, water".to_string(),
+                units: logistics,
+            },
+            RoleView {
+                role: Role::RearArea,
+                note: "reinforcements & rear".to_string(),
+                units: vec![],
+            },
+            RoleView {
+                role: Role::Air,
+                note: "air squadrons".to_string(),
+                units: air,
+            },
+            RoleView {
+                role: Role::FrontLine,
+                note: "ground forces".to_string(),
+                units: front,
+            },
+        ];
 
         Observation {
             scenario: self.scenario_name.clone(),
@@ -138,7 +155,7 @@ impl GameState {
             viewer: side,
             game_over: self.game_over,
             winner: self.winner,
-            map: self.map.clone(),
+            terrain: self.map.terrain_grid(),
             units,
             depots,
             objectives: self.map.objectives.clone(),

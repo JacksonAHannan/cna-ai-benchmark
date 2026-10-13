@@ -7,7 +7,7 @@
 
 use crate::adapter::{Agent, ModelError};
 use async_trait::async_trait;
-use cna_engine::{Action, ActionError, Hex, Observation, UnitId, UnitType};
+use cna_engine::{Action, ActionError, Hex, Observation, Terrain, UnitId, UnitType};
 use parking_lot::Mutex;
 use std::collections::HashSet;
 
@@ -159,8 +159,15 @@ fn nearest_target(obs: &Observation, cur: Hex, enemy: &[&cna_engine::Unit]) -> H
         .unwrap_or(cur)
 }
 
+fn terrain_at(obs: &Observation, h: Hex) -> Option<Terrain> {
+    let (row, col) = h.to_offset();
+    let row_str = obs.terrain.get(row as usize)?;
+    let ch = row_str.as_bytes().get(col as usize)?;
+    Some(Terrain::from_code(*ch as char))
+}
+
 fn passable(obs: &Observation, h: Hex) -> bool {
-    obs.map.get(h).map(|m| m.terrain.passable()).unwrap_or(false)
+    terrain_at(obs, h).map(|t| t.passable()).unwrap_or(false)
 }
 
 fn occupied(obs: &Observation, h: Hex) -> bool {
@@ -197,10 +204,8 @@ fn best_move(
             if !passable(obs, n) || occupied(obs, n) {
                 continue;
             }
-            let cost = obs
-                .map
-                .get(n)
-                .map(|m| m.terrain.move_cost(u.kind.is_mobile()))
+            let cost = terrain_at(obs, n)
+                .map(|t| t.move_cost(u.kind.is_mobile()))
                 .unwrap_or(u8::MAX);
             if cost == u8::MAX || u.movement < cost {
                 continue;

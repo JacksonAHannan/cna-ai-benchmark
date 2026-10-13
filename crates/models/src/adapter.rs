@@ -85,12 +85,13 @@ Action variants (hexes are {"q":int,"r":int} axial coordinates):
 - {"type":"endTurn"}
 
 Key rules:
+- terrain is an array of map rows; hex {"q":q,"r":r} is at row=r, column=q+(r-(r&1))/2. Codes: S sea, D desert, R road, C coast, E escarpment, O oasis, V village.
 - Out-of-supply units move at half rate and lose strength each turn.
 - Mobile units burn fuel to move; fuel evaporates each turn (6%, 9% for Commonwealth).
 - Italian units draw extra water for pasta.
 - Waterless units cannot move or attack; ammo-less units cannot attack.
 - You may only move/attack units you can see (fog of war); your own units are always visible.
-- A unit can attack once per turn; movement and attacks consume MP.
+- A unit can attack once per turn; movement and attacks consume CP.
 
 IMPORTANT: Respond with raw JSON only — no XML, no markdown code fences, no HTML/XML tags, no surrounding prose."#;
 
