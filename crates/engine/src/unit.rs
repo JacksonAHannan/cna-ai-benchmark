@@ -53,15 +53,19 @@ pub enum SupplyStatus {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
 pub enum Organization {
     Division,
+    SuperBrigade,
     Brigade,
     Battalion,
     Company,
 }
 
 impl Organization {
+    /// Stacking points (§9.4): division 5, super brigade 3, standard brigade 2,
+    /// battalion 1, company 0.
     pub fn rank(self) -> u8 {
         match self {
-            Organization::Division => 3,
+            Organization::Division => 5,
+            Organization::SuperBrigade => 3,
             Organization::Brigade => 2,
             Organization::Battalion => 1,
             Organization::Company => 0,

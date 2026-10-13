@@ -243,6 +243,14 @@ pub fn scramble_max(distance: i32) -> Option<u8> {
     }
 }
 
+/// Prisoner fraction of a side's losses by capture die (§15.89), die 1–6.
+pub const PRISONER_PCT: [u8; 6] = [10, 25, 33, 50, 50, 75];
+
+/// Percentage of a side's casualties captured as prisoners (§15.89).
+pub fn prisoner_percent(die: u8) -> u8 {
+    PRISONER_PCT[(die.clamp(1, 6) - 1) as usize]
+}
+
 // === Supply/logistics chart (§2, §54) ===
 
 /// Tons per supply point of each resource (§54.5).

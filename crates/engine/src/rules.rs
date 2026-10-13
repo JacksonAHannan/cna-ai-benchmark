@@ -367,8 +367,7 @@ impl GameState {
         }
         air_shift = air_shift.min(2);
         // §15.51 2:1 raw strength, §15.53 organization, §15.61–62 morale.
-        let org_shift =
-            org_shift(a.organization, t.organization, a.strength as u32, t.strength as u32);
+        let org_shift = org_shift(a.organization, t.organization);
         let ratio_shift = if a.strength as u32 >= 2 * t.strength as u32 {
             2
         } else if t.strength as u32 >= 2 * a.strength as u32 {
@@ -411,10 +410,14 @@ impl GameState {
 
         let mut tags = String::new();
         if result.attacker_captured {
-            tags.push_str(" attacker-captured");
+            let pct = crate::charts::prisoner_percent(self.rng.between(1, 6) as u8);
+            let prisoners = ((a_losses as u32 * pct as u32 + 99) / 100) as u8;
+            tags.push_str(&format!(" attacker-captured {prisoners}"));
         }
         if result.defender_captured {
-            tags.push_str(" defender-captured");
+            let pct = crate::charts::prisoner_percent(self.rng.between(1, 6) as u8);
+            let prisoners = ((d_losses as u32 * pct as u32 + 99) / 100) as u8;
+            tags.push_str(&format!(" defender-captured {prisoners}"));
         }
         if engaged_now {
             tags.push_str(" engaged");
@@ -687,37 +690,24 @@ fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> Com
 }
 
 /// Organizational column shift (§15.53): positive favors the attacker.
-/// `smaller_str` is the strength (TOE points) of the smaller organization,
-/// used to distinguish 3-point from 2-point brigades.
-fn org_shift(
-    attacker: Organization,
-    defender: Organization,
-    attacker_str: u32,
-    defender_str: u32,
-) -> i32 {
+/// Uses the published stacking-point comparison (§9.4): division 5, super
+/// brigade 3, standard brigade 2, battalion 1, company 0.
+fn org_shift(attacker: Organization, defender: Organization) -> i32 {
     let ar = attacker.rank() as i32;
     let dr = defender.rank() as i32;
     if ar == dr {
         return 0;
     }
-    let (larger, smaller, smaller_str) = if ar > dr {
-        (attacker, defender, defender_str)
-    } else {
-        (defender, attacker, attacker_str)
-    };
+    let (larger, smaller) = if ar > dr { (ar, dr) } else { (dr, ar) };
     let mag = match (larger, smaller) {
-        (Organization::Division, Organization::Brigade) => {
-            if smaller_str >= 3 {
-                1
-            } else {
-                2
-            }
-        }
-        (Organization::Division, Organization::Battalion) => 4,
-        (Organization::Division, Organization::Company) => 8,
-        (Organization::Brigade, Organization::Battalion) => 2,
-        (Organization::Brigade, Organization::Company) => 4,
-        (Organization::Battalion, Organization::Company) => 2,
+        (5, 3) => 1,
+        (5, 2) => 2,
+        (5, 1) => 4,
+        (5, 0) => 8,
+        (3, 2) => 0,
+        (2..=3, 1) => 2,
+        (2..=3, 0) => 4,
+        (1, 0) => 2,
         _ => 0,
     };
     if ar > dr {
