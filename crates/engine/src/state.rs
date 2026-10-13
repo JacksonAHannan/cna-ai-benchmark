@@ -364,16 +364,28 @@ impl GameState {
                     self.eliminate_unit(id, "attrition (out of supply)");
                 }
             }
+        }
 
-            // Air squadrons refit: recover a share of the reserve (§38.37).
-            if unit.kind == UnitType::Air {
-                let reserve = unit.max_strength.saturating_sub(unit.strength);
-                if reserve > 0 {
-                    let pct = crate::charts::refit_percent(self.rng.between(1, 9) as u8);
-                    let recovered = ((reserve as u32 * pct as u32 + 99) / 100) as u8;
-                    unit.strength = unit.strength.saturating_add(recovered.max(1));
-                }
+        // Air squadrons refit (separate pass to avoid holding a unit borrow
+        // across the RNG): recover a share of the reserve (§38.37).
+        let air_ids: Vec<UnitId> = self
+            .units
+            .values()
+            .filter(|u| !u.eliminated() && u.side == side && u.kind == UnitType::Air)
+            .map(|u| u.id)
+            .collect();
+        for id in air_ids {
+            let reserve = {
+                let u = &self.units[&id];
+                u.max_strength.saturating_sub(u.strength)
+            };
+            if reserve == 0 {
+                continue;
             }
+            let pct = crate::charts::refit_percent(self.rng.between(1, 9) as u8);
+            let recovered = ((reserve as u32 * pct as u32 + 99) / 100) as u8;
+            let u = self.units.get_mut(&id).unwrap();
+            u.strength = u.strength.saturating_add(recovered.max(1));
         }
     }
 
