@@ -363,9 +363,23 @@ impl GameState {
                     unit.fuel = unit.fuel_capacity;
                 }
             } else {
-                // Out of supply: water depletes (Italian pasta draws it faster).
-                let w = unit.water_draw() as u8;
-                unit.water = unit.water.saturating_sub(w);
+                // Out of supply: water depletes — unless the unit sits on an
+                // oasis or major city, which provide unlimited water (§52).
+                let on_source = unit
+                    .hex
+                    .map(|h| {
+                        self.map
+                            .get(h)
+                            .map(|m| m.terrain.is_water_source())
+                            .unwrap_or(false)
+                    })
+                    .unwrap_or(false);
+                if on_source {
+                    unit.water = unit.water_capacity;
+                } else {
+                    let w = unit.water_draw() as u8;
+                    unit.water = unit.water.saturating_sub(w);
+                }
             }
 
             // CNA signature: fuel evaporates each Game-Turn (research-corrected

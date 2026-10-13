@@ -120,6 +120,11 @@ impl Terrain {
         !matches!(self, Terrain::Sea)
     }
 
+    /// Unlimited water source (§52): major cities and oases provide water.
+    pub fn is_water_source(self) -> bool {
+        matches!(self, Terrain::Oasis | Terrain::MajorCity)
+    }
+
     /// Road or coast — the Via Balbia supply artery.
     pub fn is_road_network(self) -> bool {
         matches!(self, Terrain::Road | Terrain::Coast)
