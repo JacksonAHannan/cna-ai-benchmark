@@ -364,6 +364,16 @@ impl GameState {
                     self.eliminate_unit(id, "attrition (out of supply)");
                 }
             }
+
+            // Air squadrons refit: recover a share of the reserve (§38.37).
+            if unit.kind == UnitType::Air {
+                let reserve = unit.max_strength.saturating_sub(unit.strength);
+                if reserve > 0 {
+                    let pct = crate::charts::refit_percent(self.rng.between(1, 9) as u8);
+                    let recovered = ((reserve as u32 * pct as u32 + 99) / 100) as u8;
+                    unit.strength = unit.strength.saturating_add(recovered.max(1));
+                }
+            }
         }
     }
 
