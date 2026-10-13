@@ -40,7 +40,7 @@ implemented.
 
 | Subsystem | Status |
 |---|---|
-| Full ~1,800-counter roster and 9.5-ft map | partial (sources located + terrain legend + 479 hexes + 409 counters transcribed; full transcription ongoing) |
+| Full ~1,800-counter roster and 9.5-ft map | partial (map 85% = 5,990 hexes from Vassal source; OB ~900 counters; scenario assembly + remaining transcription ongoing) |
 | Physical truck/dump/well/pipeline delivery | partial (per-depot stock, water sources, truck points done; pipeline construction pending) |
 | Dynamic morale check (§17.4 disorganization table) | pending (static per-unit morale −3..+3; shift = difference is wired) |
 | Per-role *agents* (5v5 Elo) | partial (role partition + team loop + `--teams` done; per-role Elo round-robin config pending) |
