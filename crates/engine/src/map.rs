@@ -192,6 +192,26 @@ impl Terrain {
             _ => Terrain::Desert,
         }
     }
+
+    /// Map a `docs/data/map-terrain.md` base-terrain code to engine Terrain.
+    /// `None` for unresolved (`?`) cells. Transcription codes: S sea, C clear,
+    /// D desert, R rough, M mountain, H salt marsh, G rock/gravel, L delta,
+    /// W swamp, F heavy vegetation.
+    pub fn from_transcription_code(c: char) -> Option<Terrain> {
+        match c {
+            'S' => Some(Terrain::Sea),
+            'C' => Some(Terrain::Clear),
+            'D' => Some(Terrain::Desert),
+            'R' => Some(Terrain::Rough),
+            'M' => Some(Terrain::Mountain),
+            'H' => Some(Terrain::SaltMarsh),
+            'G' => Some(Terrain::RockGravel),
+            'L' => Some(Terrain::Delta),
+            'W' => Some(Terrain::Swamp),
+            'F' => Some(Terrain::HeavyVegetation),
+            _ => None,
+        }
+    }
 }
 
 /// A named feature on a hex. Depots are supply sources; objectives are victory points.
@@ -284,6 +304,30 @@ impl Map {
             depots: Vec::new(),
             objectives: Vec::new(),
         }
+    }
+
+    /// Build a map from a set of (axial hex, terrain) cells, normalizing the
+    /// offset bounding box to (0,0). Unlisted cells default to Sea.
+    pub fn from_axial_hexes<I: IntoIterator<Item = (Hex, Terrain)>>(cells: I) -> Self {
+        let cells: Vec<(Hex, Terrain)> = cells.into_iter().collect();
+        if cells.is_empty() {
+            return Map::new_grid(0, 0);
+        }
+        let min_row = cells.iter().map(|(h, _)| h.r).min().unwrap();
+        let max_row = cells.iter().map(|(h, _)| h.r).max().unwrap();
+        let min_col = cells.iter().map(|(h, _)| h.to_offset().1).min().unwrap();
+        let max_col = cells.iter().map(|(h, _)| h.to_offset().1).max().unwrap();
+        let rows = (max_row - min_row + 1).max(1);
+        let cols = (max_col - min_col + 1).max(1);
+        let mut map = Map::new_grid(rows, cols);
+        for (h, t) in cells {
+            let (r, c) = h.to_offset();
+            let norm = Hex::from_offset(r - min_row, c - min_col);
+            if let Some(mh) = map.get_mut(norm) {
+                mh.terrain = t;
+            }
+        }
+        map
     }
 
     /// Set the terrain of every hex in an offset row/col rectangle.
