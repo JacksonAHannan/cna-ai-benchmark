@@ -75,6 +75,7 @@ export interface Event {
   reason?: string;
   amount?: number;
   rate_percent?: number;
+  tons?: number;
   status?: string;
   error?: string;
   note?: string;
@@ -132,6 +133,9 @@ export interface GameSummary {
   axis_eliminations: string[];
   reinforcements: string[];
   attack_results: string[];
+  bombs: number;
+  air_combats: number;
+  convoy_tons: number;
   timeline: string[];
 }
 

@@ -26,6 +26,9 @@ pub struct GameSummary {
     pub reinforcements: Vec<String>,
     /// Combat result codes in chronological order (De/Dr/Ex/Ar/Ae/Ne).
     pub attack_results: Vec<String>,
+    pub bombs: u32,
+    pub air_combats: u32,
+    pub convoy_tons: u32,
     pub timeline: Vec<String>,
 }
 
@@ -95,6 +98,23 @@ pub fn summarize(events: &[Event]) -> GameSummary {
                 s.reason = format!("{:?}", outcome.reason);
                 s.allied_score = outcome.allied_score;
                 s.axis_score = outcome.axis_score;
+            }
+            Event::Bomb {
+                turn, supply_hit, ..
+            } => {
+                s.turns = s.turns.max(*turn);
+                s.bombs += 1;
+                if *supply_hit > 0 {
+                    s.timeline.push(format!("💣 supply hit −{supply_hit}"));
+                }
+            }
+            Event::AirCombat { turn, .. } => {
+                s.turns = s.turns.max(*turn);
+                s.air_combats += 1;
+            }
+            Event::Convoy { turn, tons } => {
+                s.turns = s.turns.max(*turn);
+                s.convoy_tons += tons;
             }
             _ => {}
         }

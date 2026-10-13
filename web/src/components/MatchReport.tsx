@@ -36,6 +36,9 @@ export default function MatchReport({ analysis }: { analysis: AnalysisResponse }
         <Stat label="Pasta" value={s.pasta} />
         <Stat label="Illegal (Allied)" value={s.illegal_allied} />
         <Stat label="Illegal (Axis)" value={s.illegal_axis} />
+        <Stat label="Bombs" value={s.bombs} />
+        <Stat label="Air combats" value={s.air_combats} />
+        <Stat label="Axis convoy tons" value={s.convoy_tons} />
       </div>
 
       {(s.allied_eliminations.length > 0 || s.axis_eliminations.length > 0) && (

@@ -12,9 +12,10 @@ everything that happens.
 
 ## What's inside
 
-- **A pure, deterministic rules engine** (`crates/engine`) — supply lines, weekly turns, fuel
-  **evaporation** (3%, 7% for the British), the Italian **pasta-water rule**, odds-based combat,
-  and **fog of war**.
+- **A pure, deterministic rules engine** (`crates/engine`) — 3-Operations-Stage weekly turns with
+  per-stage initiative, 4-resource supply (fuel/ammo/stores/water) with fuel **evaporation**
+  (6%, 9% for Commonwealth) and the Italian **pasta-water rule**, a differential CRT, strategic
+  air (recon/bombing/interception), naval convoy supply, and **fog of war**.
 - **Provider-agnostic model adapter** (`crates/models`) — OpenAI, Anthropic, any OpenAI-compatible
   endpoint (open weights via Ollama/vLLM), plus a deterministic offline `Mock` baseline.
 - **Headless benchmark** (`crates/bench`) — concurrent round-robin games, Elo ratings, and
@@ -46,8 +47,8 @@ Write an agent config (a JSON array of [`AgentConfig`] objects):
 
 ```json
 [
-  { "provider": "OpenAi",   "name": "gpt-4o",   "model": "gpt-4o", "temperature": 0.0 },
-  { "provider": "Anthropic","name": "claude",    "model": "claude-3-5-sonnet-latest", "temperature": 0.0 }
+  { "provider": "OpenAi",   "name": "gpt-6-luna",   "model": "gpt-6-luna", "temperature": 0.0 },
+  { "provider": "Anthropic","name": "claude-haiku-5-5", "model": "claude-haiku-5-5", "temperature": 0.0 }
 ]
 ```
 
@@ -68,11 +69,12 @@ models play live in the browser, or omit it to use the offline `mock-a`/`mock-b`
 ## How a game plays
 
 Each side is controlled by one model (all five of CNA's staff roles are its observation
-partitions). A **turn = one week**; phases run `Supply → Attrition → Movement → Combat → Air →
-Rear Area`. The model sees only what its side can observe (fog of war) and submits **strictly
-validated actions** — `move`, `attack`, `airRecon`, `pass`, `endTurn`. Illegal actions are rejected
-with feedback and logged (legality is a tracked metric). Games terminate at a scenario horizon or
-when a side is eliminated, so Elo is always computable.
+partitions). A **Game-Turn = one week = three Operations Stages**, with initiative rolled per
+stage; supply/attrition are weekly, movement/combat CP reset per stage. The model sees only what
+its side can observe (fog of war) and submits **strictly validated actions** — `move`, `attack`,
+`airRecon`, `bomb`, `pass`, `endTurn`. Illegal actions are rejected with feedback and logged
+(legality is a tracked metric). Games terminate at a scenario horizon or when a side is
+eliminated, so Elo is always computable.
 
 The shipped scenario, **"Operation Compass (reduced)"**, is a coastal-desert slice of the Via
 Balbia with a reduced but real order of battle — faithful in *mechanics*, reduced in *scale*.
@@ -89,8 +91,9 @@ Balbia with a reduced but real order of battle — faithful in *mechanics*, redu
 crates/
   engine/    pure deterministic rules (no I/O)
   models/    Agent trait + providers + the shared game-driving loop
+  analyzer/  post-game stats + LLM strategy narrative
   bench/     headless round-robin + Elo + event-log persistence
-  server/    Axum + WebSocket live stream, replay, static UI
+  server/    Axum + WebSocket live stream, replay, analysis, static UI
 web/         React + Vite spectator UI
 docs/adr/    architecture decision records
 ```

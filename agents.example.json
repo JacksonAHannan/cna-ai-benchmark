@@ -1,21 +1,21 @@
 [
   {
     "provider": "OpenAi",
-    "name": "gpt-4o",
-    "model": "gpt-4o",
+    "name": "gpt-6-luna",
+    "model": "gpt-6-luna",
     "temperature": 0.0
   },
   {
     "provider": "Anthropic",
-    "name": "claude-sonnet",
-    "model": "claude-3-5-sonnet-latest",
+    "name": "claude-haiku-5-5",
+    "model": "claude-haiku-5-5",
     "temperature": 0.0
   },
   {
     "provider": "OpenAiCompatible",
-    "name": "local-llama",
-    "model": "llama-3.1-8b-instruct",
-    "base_url": "http://127.0.0.1:11434/v1",
+    "name": "deepseek-flash",
+    "model": "deepseek-flash",
+    "base_url": "https://api.deepseek.com",
     "temperature": 0.0
   }
 ]

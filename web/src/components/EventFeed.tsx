@@ -13,6 +13,8 @@ function describe(ev: Event): { text: string; cls: string } {
       return { text: `▸ Turn ${ev.turn} — ${ev.side} command`, cls: 'evt-turnStart' };
     case 'supply':
       return { text: `supply: ${ev.name} → ${ev.status}`, cls: 'evt-supply' };
+    case 'convoy':
+      return { text: `🚢 Axis convoy: ${ev.tons} tons`, cls: 'evt-supply' };
     case 'evaporation':
       return { text: `evaporation: ${ev.subject} (-${ev.amount} fuel @${ev.rate_percent}%)`, cls: 'evt-evaporation' };
     case 'pasta':
