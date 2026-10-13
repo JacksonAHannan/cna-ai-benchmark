@@ -57,6 +57,10 @@ pub enum Terrain {
     Rough,
     Mountain,
     SaltMarsh,
+    RockGravel,
+    HeavyVegetation,
+    Delta,
+    Swamp,
     Escarpment,
     Road,
     Track,
@@ -93,6 +97,18 @@ impl Terrain {
                     3
                 }
             }
+            // §8.37: rock/gravel 2/2, heavy vegetation 3/3, delta 2/4.
+            Terrain::RockGravel => 2,
+            Terrain::HeavyVegetation => 3,
+            Terrain::Delta => {
+                if motorized {
+                    4
+                } else {
+                    2
+                }
+            }
+            // Swamp entry requires road/rail (§8.37); treated as impassable here.
+            Terrain::Swamp => u8::MAX,
             // Up-escarpment: +6 non-motorized, prohibited for motorized.
             Terrain::Escarpment => {
                 if motorized {
@@ -112,6 +128,7 @@ impl Terrain {
             Terrain::Mountain => 3,
             Terrain::Escarpment => 3,
             Terrain::SaltMarsh => -1, // R1 favors the attacker
+            Terrain::HeavyVegetation => 1, // L1 (infantry column)
             _ => 0,
         }
     }
@@ -139,6 +156,10 @@ impl Terrain {
             Terrain::Rough => 'G',
             Terrain::Mountain => 'M',
             Terrain::SaltMarsh => 'L',
+            Terrain::RockGravel => 'B',
+            Terrain::HeavyVegetation => 'F',
+            Terrain::Delta => 'A',
+            Terrain::Swamp => 'W',
             Terrain::Escarpment => 'E',
             Terrain::Road => 'R',
             Terrain::Track => 'T',
@@ -157,6 +178,10 @@ impl Terrain {
             'G' => Terrain::Rough,
             'M' => Terrain::Mountain,
             'L' => Terrain::SaltMarsh,
+            'B' => Terrain::RockGravel,
+            'F' => Terrain::HeavyVegetation,
+            'A' => Terrain::Delta,
+            'W' => Terrain::Swamp,
             'E' => Terrain::Escarpment,
             'R' => Terrain::Road,
             'T' => Terrain::Track,
