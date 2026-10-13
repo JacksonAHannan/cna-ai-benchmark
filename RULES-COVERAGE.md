@@ -4,47 +4,56 @@ Honest accounting of what the engine implements, relative to SPI's *The Campaign
 (1978). The reference game is under copyright (Decision Games); this project implements **mechanics**
 only, in original expression, with original map/counter art and no copied rulebook text.
 
-The published-rules reference (`docs/cna-rules.md`) was compiled from the archived rulebook; it is the
-authority for the numeric values below.
+The published-rules reference (`docs/cna-rules.md`) and the extracted chart data (`docs/data/*.md`)
+are the authority for the numeric values below.
 
-**Coverage status:** `faithful` = mechanic structurally matches CNA; `reconstructed` = implemented from
-public descriptions where exact chart values were not available, marked and judgment-filled;
-`approximated` = deliberately simplified; `pending` = not yet implemented.
+**Coverage status:** `faithful` = mechanic structurally matches CNA and uses the published chart
+values; `reconstructed` = implemented from public descriptions where exact chart values were not
+available, marked and judgment-filled; `approximated` = deliberately simplified; `pending` = not yet
+implemented.
 
-## Implemented (Phase 1)
+## Implemented
 
 | Subsystem | Status | Notes |
 |---|---|---|
 | Turn = 1 week = 3 Operations Stages | faithful | Per-stage initiative roll; weekly supply/attrition, per-stage CP reset |
 | Phase order: Supply → Attrition → Movement → Combat → Air → RearArea | faithful | Order fixed by engine |
-| Fuel evaporation per turn | faithful | **6% baseline / 9% Commonwealth** through Aug 1941 (research-corrected §49.3); hot-weather +5% not yet modeled |
-| Italian extra water demand ("pasta rule") | faithful | Higher supply demand for Italian infantry; gates movement/full-strength combat |
-| Supply lines traced to Depots over Road/Coast | faithful | Out-of-supply penalties; depot capacities reflect published port tonnage (Tripoli/Alexandria major, Benghazi ~1/6) |
-| Ammunition resource | faithful | Ammo points refilled in supply, consumed per attack; no ammo → cannot attack |
-| Water resource | faithful | Water points refilled in supply, consumed per turn (Italian +1 pasta); waterless units can't move/attack and defend at half strength |
-| Hex movement with terrain cost + fuel burn | reconstructed | Terrain costs are plausible values, not CNA's exact MP chart |
-| Differential CRT combat (percentage losses, retreat) | faithful | Exact 18-column close-assault CRT transcribed from the archived chart (`docs/data/crt.md`) |
-| Air game: recon, ground support, strategic bombing, interception | reconstructed | Bombing disrupts depot supply; enemy air within 4 hexes intercepts (air-to-air losses); refit/sortie detail not yet modeled |
+| Close-assault CRT | faithful | Exact 18-column table + dice-sum effects: capture, Engaged, 1/2/3-hex retreat (`charts.rs`, `docs/data/crt.md`) |
+| Combat column modifiers | faithful | Terrain shifts, organization (stacking points §9.4/§15.53), morale difference (§15.61), 2:1 raw strength (§15.51), air support |
+| Prisoners / capture | faithful | Shared §15.89 table (10/25/33/50/50/75%) resolves captured fraction of losses |
+| Engaged contact | faithful | Attacker's Engaged result locks both sides in contact; engaged units can only attack |
+| Hex movement + terrain costs | faithful | Exact §8.37 terrain chart: motorized/non-motorized costs, assault-defense shifts |
+| Fuel evaporation per turn | faithful | 6% baseline / 9% Commonwealth through Aug 1941 (research-corrected §49.3); hot-weather +5% not modeled |
+| Italian extra water demand ("pasta rule") | faithful | +1 water for Italian battalions; waterless units can't move/attack, defend at half strength |
+| Supply: fuel/ammo/stores/water | faithful | 4 resources, per-depot stock depleted by draw, resource weights (§54.5), truck/dump/rail chart data |
+| Water sources | faithful | Oases and major cities provide unlimited water (§52); wells/pipelines pending |
+| Air: squadrons, refit, sorties | faithful | Squadron ready/reserve capacities (§35.23), refit table (§38.37), per-turn sorties |
+| Air: air-to-air, scramble, bombing, AA | faithful | TacAir kill table (§45.5), scramble by distance (§40.4), supply-dump bombing table (§41.5), flak bands + destroyed/aborted (§46) |
+| Naval: convoy tonnage + lanes | faithful | Monthly tonnage chart (§56.4–5), 6 lanes, port capacity table (§55.3) |
 | Rear-area reinforcements on schedule | faithful | Reinforcement schedule is scenario data |
-| Fog-of-war: side intel + detection range + air recon | faithful | Per-role *observation partition*; one Agent per side acts for all roles |
-| Victory: objective control at turn horizon / elimination | reconstructed | Scenario-defined; CNA's own scenarios vary |
+| Fog-of-war: side intel + detection + air recon | faithful | Per-role *observation partition*; one Agent per side acts for all roles |
+| Victory: objective control at horizon / elimination | reconstructed | Scenario-defined; CNA's own scenarios vary |
 
 ## Not yet implemented (later phases)
 
 | Subsystem | Status |
 |---|---|
 | Full ~1,800-counter roster and 9.5-ft map | pending (scenarios use reduced but real formations) |
-| Full ~70 charts (all CRTs, MP, air, naval) | pending |
-| Air sorties/refit/air-superiority/AA detail | pending (recon/bombing/interception done) |
+| Physical truck/dump/well/pipeline delivery | partial (per-depot stock + water sources done; truck/rail/pipeline units pending) |
+| Dynamic morale check (§17.4 disorganization table) | pending (static per-unit morale −3..+3; shift = difference is wired) |
 | Per-role *agents* (5v5 Elo) | pending (role partition in observations done; one agent per side) |
 | Client-side WASM engine for interactive replay | pending (Phase 1 = server-authoritative spectator) |
 
+## Placeholders (not yet sourced from the OB)
+
+- **Morale and AA ratings** are placeholder values (German/Commonwealth high, Italian low; artillery
+  carries flak) until the full ~1,800-counter OB is transcribed.
+- **Scenario port capacities** use the published *relative* tonnage scaled to the reduced scenario
+  (Tripoli/Alexandria major, Benghazi/Tobruk/Mersa Matruh minor).
+
 ## Reconstruction log
 
-- **Movement/terrain MP costs**: chosen as internally consistent values; not taken from CNA's movement
-  point charts (exact values unpublished to us).
-- **Differential CRT columns**: differential (attacker − defender + modifiers) → loss percentages.
-  Structure follows CNA's 18-column differential CRT; the per-column values are reconstructed
-  (only the +3 column was captured in research).
 - **Scenario rosters**: real formation names (e.g. 7th Armoured, Afrika Korps) at reduced counter counts;
   strengths are illustrative, not sourced from CNA's OB.
+- **Reduced-scenario tonnage scale**: port/convey tonnage is scaled ÷500 (Tripoli 15,000 t ≈ 30 supply
+  points) to match the reduced counter count; the full OB will use published tons directly.
