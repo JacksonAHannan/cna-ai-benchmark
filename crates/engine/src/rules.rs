@@ -18,7 +18,7 @@ const DETECTION_RANGE: i32 = 2;
 struct CombatResult {
     attacker_loss_pct: u8,
     defender_loss_pct: u8,
-    defender_retreats: bool,
+    defender_retreat_hexes: u8,
 }
 
 impl GameState {
@@ -367,10 +367,10 @@ impl GameState {
 
         self.apply_step_loss(attacker, a_losses);
         self.apply_step_loss(target, d_losses);
-        if result.defender_retreats
+        if result.defender_retreat_hexes > 0
             && !self.units.get(&target).map(|u| u.eliminated()).unwrap_or(true)
         {
-            self.retreat_unit(target);
+            self.retreat_unit(target, result.defender_retreat_hexes);
         }
 
         // Attacker expends its attack.
@@ -402,23 +402,25 @@ impl GameState {
         }
     }
 
-    fn retreat_unit(&mut self, id: UnitId) {
-        let cur = match self.units.get(&id).and_then(|u| u.hex) {
-            Some(h) => h,
-            None => return, // already eliminated (e.g. by a prior step loss)
-        };
-        let candidates: Vec<Hex> = cur
-            .neighbors()
-            .into_iter()
-            .filter(|&h| {
-                self.map.in_bounds(h)
-                    && self.map.get(h).unwrap().terrain.passable()
-                    && !self.occupied_by_any(h)
-            })
-            .collect();
-        if candidates.is_empty() {
-            self.eliminate_unit(id, "no retreat path");
-        } else {
+    fn retreat_unit(&mut self, id: UnitId, distance: u8) {
+        for _ in 0..distance {
+            let cur = match self.units.get(&id).and_then(|u| u.hex) {
+                Some(h) => h,
+                None => return, // already eliminated
+            };
+            let candidates: Vec<Hex> = cur
+                .neighbors()
+                .into_iter()
+                .filter(|&h| {
+                    self.map.in_bounds(h)
+                        && self.map.get(h).unwrap().terrain.passable()
+                        && !self.occupied_by_any(h)
+                })
+                .collect();
+            if candidates.is_empty() {
+                self.eliminate_unit(id, "no retreat path");
+                return;
+            }
             let idx = self.rng.below(candidates.len() as u64) as usize;
             let to = candidates[idx];
             self.units.get_mut(&id).unwrap().hex = Some(to);
@@ -632,7 +634,7 @@ fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> Com
     CombatResult {
         attacker_loss_pct: o.attacker_loss_pct,
         defender_loss_pct: o.defender_loss_pct,
-        defender_retreats: o.defender_retreat > 0,
+        defender_retreat_hexes: o.defender_retreat,
     }
 }
 
