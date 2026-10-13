@@ -280,9 +280,12 @@ impl GameState {
             unit.missions = unit.missions_allowance;
             unit.has_attacked = false;
 
-            // Refuel in-supply mobile/air units from the supply line.
-            if unit.supply == SupplyStatus::InSupply && unit.fuel_capacity > 0 {
-                unit.fuel = unit.fuel_capacity;
+            // Refuel/rearm in-supply units from the supply line.
+            if unit.supply == SupplyStatus::InSupply {
+                unit.ammo = unit.ammo_capacity;
+                if unit.fuel_capacity > 0 {
+                    unit.fuel = unit.fuel_capacity;
+                }
             }
 
             // CNA signature: fuel evaporates each Game-Turn (research-corrected

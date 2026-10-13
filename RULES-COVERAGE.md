@@ -19,7 +19,8 @@ public descriptions where exact chart values were not available, marked and judg
 | Phase order: Supply → Attrition → Movement → Combat → Air → RearArea | faithful | Order fixed by engine |
 | Fuel evaporation per turn | faithful | **6% baseline / 9% Commonwealth** through Aug 1941 (research-corrected §49.3); hot-weather +5% not yet modeled |
 | Italian extra water demand ("pasta rule") | faithful | Higher supply demand for Italian infantry; gates movement/full-strength combat |
-| Supply lines traced to Depots over Road/Coast | faithful | Out-of-supply penalties |
+| Supply lines traced to Depots over Road/Coast | faithful | Out-of-supply penalties; depot capacities reflect published port tonnage (Tripoli/Alexandria major, Benghazi ~1/6) |
+| Ammunition resource | faithful | Ammo points refilled in supply, consumed per attack; no ammo → cannot attack |
 | Hex movement with terrain cost + fuel burn | reconstructed | Terrain costs are plausible values, not CNA's exact MP chart |
 | Differential CRT combat (percentage losses, retreat) | reconstructed | 18-column differential structure faithful; column values reconstructed (`docs/cna-rules.md` §15) |
 | Air support (column shift) + recon (fog reveal) | approximated | CNA's air game is far more granular; v1 is a single abstracted mission |
@@ -33,7 +34,7 @@ public descriptions where exact chart values were not available, marked and judg
 |---|---|
 | Full ~1,800-counter roster and 9.5-ft map | pending (scenarios use reduced but real formations) |
 | Full ~70 charts (all CRTs, MP, air, naval) | pending |
-| Naval / convoy game | pending |
+| Naval convoy system (lanes, convoy resolution, shipping losses) | pending (port supply tonnage now modeled) |
 | Granular air game (sorties, air superiority, interception) | pending |
 | 10-player team structure with per-role *agents* (5v5 Elo) | pending (v2; Phase 1 = one agent per side) |
 | Client-side WASM engine for interactive replay | pending (Phase 1 = server-authoritative spectator) |

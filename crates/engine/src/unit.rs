@@ -67,6 +67,10 @@ pub struct Unit {
     /// Air units: sorties remaining this turn.
     pub missions: u8,
     pub missions_allowance: u8,
+    /// Ammunition points: refilled when in supply, consumed per attack. No ammo
+    /// means the unit cannot attack.
+    pub ammo: u8,
+    pub ammo_capacity: u8,
     /// `None` once eliminated (or not yet deployed).
     pub hex: Option<Hex>,
     pub has_attacked: bool,
@@ -88,6 +92,11 @@ impl Unit {
             UnitType::Air => 8,
             _ => 0,
         };
+        let ammo_capacity = match kind {
+            UnitType::Air => 0,
+            UnitType::Artillery => 4,
+            _ => 3,
+        };
         Unit {
             id,
             name: name.to_string(),
@@ -103,6 +112,8 @@ impl Unit {
             supply: SupplyStatus::InSupply,
             missions: 2,
             missions_allowance: 2,
+            ammo: ammo_capacity,
+            ammo_capacity,
             hex: Some(hex),
             has_attacked: false,
         }

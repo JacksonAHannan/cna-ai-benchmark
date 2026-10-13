@@ -78,6 +78,11 @@ export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [mode, setMode] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
+  const [replayBuffer, setReplayBuffer] = useState<Event[]>([]);
+  const [playhead, setPlayhead] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState(1);
+  const isReplayRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -95,6 +100,25 @@ export default function App() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!isReplayRef.current || !playing) return;
+    if (playhead >= replayBuffer.length) return;
+    const tick = setTimeout(() => {
+      const ev = replayBuffer[playhead];
+      setSpec((s) =>
+        s
+          ? {
+              ...s,
+              events: [...s.events, ev],
+              units: applyEventsToUnits(s.units, [ev]),
+            }
+          : s,
+      );
+      setPlayhead((p) => p + 1);
+    }, 150 / speed);
+    return () => clearTimeout(tick);
+  }, [playing, speed, playhead, replayBuffer]);
 
   const connect = useCallback((url: string) => {
     wsRef.current?.close();
@@ -120,15 +144,19 @@ export default function App() {
           done: null,
         });
       } else if (msg.type === 'events') {
-        setSpec((s) =>
-          s
-            ? {
-                ...s,
-                events: [...s.events, ...msg.events],
-                units: applyEventsToUnits(s.units, msg.events),
-              }
-            : s,
-        );
+        if (isReplayRef.current) {
+          setReplayBuffer((prev) => [...prev, ...msg.events]);
+        } else {
+          setSpec((s) =>
+            s
+              ? {
+                  ...s,
+                  events: [...s.events, ...msg.events],
+                  units: applyEventsToUnits(s.units, msg.events),
+                }
+              : s,
+          );
+        }
       } else if (msg.type === 'state') {
         setSpec((s) =>
           s
@@ -143,6 +171,7 @@ export default function App() {
             : s,
         );
       } else if (msg.type === 'done') {
+        if (isReplayRef.current) setPlaying(false);
         setSpec((s) =>
           s
             ? {
@@ -166,6 +195,7 @@ export default function App() {
     const r = await fetch('/api/games', { method: 'POST' });
     const { id } = await r.json();
     setMode(`live #${id}`);
+    isReplayRef.current = false;
     setAnalysis(null);
     connect(`ws://${location.host}/ws/spectate/${id}`);
     refresh();
@@ -173,12 +203,18 @@ export default function App() {
 
   const spectate = (id: number) => {
     setMode(`live #${id}`);
+    isReplayRef.current = false;
     setAnalysis(null);
     connect(`ws://${location.host}/ws/spectate/${id}`);
   };
 
   const replay = (file: string) => {
     setMode(`replay ${file}`);
+    isReplayRef.current = true;
+    setReplayBuffer([]);
+    setPlayhead(0);
+    setPlaying(true);
+    setSpec(null);
     connect(`ws://${location.host}/ws/replay/${file}`);
     fetch(`/api/analyze/${file}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -247,6 +283,33 @@ export default function App() {
                   </>
                 )}
               </>
+            )}
+            {mode.startsWith('replay') && (
+              <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  className="btn"
+                  style={{ width: 'auto', padding: '2px 10px' }}
+                  onClick={() => setPlaying((p) => !p)}
+                >
+                  {playing ? '⏸ Pause' : '▶ Play'}
+                </button>
+                {[1, 2, 4].map((s) => (
+                  <button
+                    key={s}
+                    className="btn"
+                    style={{
+                      width: 'auto',
+                      padding: '2px 8px',
+                      ...(speed === s
+                        ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
+                        : {}),
+                    }}
+                    onClick={() => setSpeed(s)}
+                  >
+                    {s}×
+                  </button>
+                ))}
+              </span>
             )}
           </div>
           {spec?.map ? (

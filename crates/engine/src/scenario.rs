@@ -70,10 +70,12 @@ pub fn default_scenario() -> Scenario {
     map.set_terrain(6, 6, Terrain::Village);
     map.set_terrain(5, 12, Terrain::Village);
 
-    // Supply depots / ports.
+    // Supply depots / ports. Capacities reflect published port supply tonnage
+    // (docs/cna-rules.md §55): Tripoli & Alexandria are the major ports; Benghazi
+    // (~1/6 of Tripoli) and Mersa Matruh are minor.
     map.add_depot(2, 3, Side::Axis, "Tripoli", 30);
-    map.add_depot(2, 7, Side::Axis, "Benghazi", 20);
-    map.add_depot(2, 10, Side::Allied, "Mersa Matruh", 20);
+    map.add_depot(2, 7, Side::Axis, "Benghazi", 6);
+    map.add_depot(2, 10, Side::Allied, "Mersa Matruh", 8);
     map.add_depot(2, 13, Side::Allied, "Alexandria", 30);
 
     // Victory objectives.
@@ -95,18 +97,25 @@ pub fn default_scenario() -> Scenario {
         UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 5, 3, 11),
         UnitSpec::new("Western Desert Force Arty", allied, br, UnitType::Artillery, 3, 3, 11),
         UnitSpec::new("RAF No.202 Group", allied, br, UnitType::Air, 4, 3, 13),
+        UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 5, 3, 12),
+        UnitSpec::new("9th Australian Division", allied, cw, UnitType::Infantry, 5, 4, 12),
         // Axis: Panzergruppe Afrika + Italian Tenth Army.
         UnitSpec::new("15th Panzer Division", axis, ger, UnitType::Armor, 5, 3, 3),
         UnitSpec::new("21st Panzer Division", axis, ger, UnitType::Armor, 4, 3, 3),
+        UnitSpec::new("90th Light Division", axis, ger, UnitType::Motorized, 4, 3, 4),
         UnitSpec::new("Ariete Armoured", axis, ita, UnitType::Armor, 3, 3, 7),
         UnitSpec::new("Trento Motorized", axis, ita, UnitType::Motorized, 4, 3, 7),
         UnitSpec::new("10th Army Infantry", axis, ita, UnitType::Infantry, 5, 3, 7),
+        UnitSpec::new("Brescia Division", axis, ita, UnitType::Infantry, 4, 4, 7),
+        UnitSpec::new("Pavia Division", axis, ita, UnitType::Infantry, 3, 4, 8),
         UnitSpec::new("Regia Aeronautica", axis, ita, UnitType::Air, 3, 3, 3),
     ];
 
     let reinforcements = vec![
         (3, UnitSpec::new("5th Light Division", axis, ger, UnitType::Motorized, 4, 2, 3)),
         (4, UnitSpec::new("2nd Armoured Division", allied, br, UnitType::Armor, 4, 2, 13)),
+        (5, UnitSpec::new("22nd Armoured Brigade", allied, br, UnitType::Armor, 3, 2, 13)),
+        (6, UnitSpec::new("Ramcke Brigade", axis, ger, UnitType::Infantry, 3, 2, 3)),
     ];
 
     Scenario {

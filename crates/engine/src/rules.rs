@@ -226,6 +226,12 @@ impl GameState {
                 "unit has no movement left to attack",
             ));
         }
+        if a.ammo == 0 {
+            return Err(ActionError::new(
+                ActionErrorKind::OutOfAmmo,
+                "unit has no ammunition",
+            ));
+        }
 
         let t = self
             .units
@@ -350,6 +356,7 @@ impl GameState {
         let au = self.units.get_mut(&attacker).unwrap();
         au.has_attacked = true;
         au.movement = au.movement.saturating_sub(1);
+        au.ammo = au.ammo.saturating_sub(1);
 
         self.log.push(Event::Attack {
             turn: self.turn,

@@ -374,7 +374,6 @@ async fn serve_replay(mut socket: WebSocket, file: String) {
                 if socket.send(msg).await.is_err() {
                     return;
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(EVENT_PACE_MS / 2)).await;
             }
         }
     }
