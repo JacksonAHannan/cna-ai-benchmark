@@ -80,7 +80,7 @@ Action variants (hexes are {"q":int,"r":int} axial coordinates):
 - {"type":"move","unit":<unitId>,"path":[<hex>,...]}   path[0] must equal the unit's current hex; each step must be adjacent, passable, and unoccupied.
 - {"type":"attack","attacker":<unitId>,"target":<unitId>,"airSupport":[<airUnitId>,...]}  attacker must be adjacent (artillery 1-2 hexes); target must be visible.
 - {"type":"airRecon","squadron":<airUnitId>,"target":<hex>}  reveals enemy units in/around the hex.
-- {"type":"bomb","squadron":<airUnitId>,"target":<hex>}  bombs a depot (disrupts supply) or pins enemy units; enemy air within 4 hexes intercepts.
+- {"type":"bomb","squadron":<airUnitId>,"target":<hex>}  bombs a depot (disrupts supply) or pins enemy units; enemy air within 15 hexes may scramble to intercept.
 - {"type":"pass"}
 - {"type":"endTurn"}
 
@@ -90,6 +90,8 @@ Key rules:
 - Mobile units burn fuel to move; fuel evaporates each turn (6%, 9% for Commonwealth).
 - Italian units draw extra water for pasta.
 - Waterless units cannot move or attack; ammo-less units cannot attack.
+- Units have `organization` (division/brigade/battalion/company) and `morale` (-3..+3). Close assault shifts columns toward the larger organization, toward the higher morale (attacker minus defender), and +2 columns for a 2:1 raw-strength advantage.
+- Close assault can leave units `contact:true` (Engaged): engaged units cannot move, only attack.
 - You may only move/attack units you can see (fog of war); your own units are always visible.
 - A unit can attack once per turn; movement and attacks consume CP.
 
