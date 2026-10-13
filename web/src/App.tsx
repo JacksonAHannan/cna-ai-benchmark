@@ -3,6 +3,7 @@ import type { AnalysisResponse, DepotView, Event, GameMap, Hex, Side, Unit, WsMe
 import HexMap from './components/HexMap';
 import EventFeed from './components/EventFeed';
 import MatchReport from './components/MatchReport';
+import UnitDetail from './components/UnitDetail';
 
 interface GameInfo {
   id: number;
@@ -23,6 +24,7 @@ interface Spectate {
   units: Unit[];
   events: Event[];
   turn: number;
+  stage: number;
   active: Side;
   winner: Side | null;
   gameOver: boolean;
@@ -77,6 +79,7 @@ export default function App() {
   const [spec, setSpec] = useState<Spectate | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [mode, setMode] = useState('');
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [replayBuffer, setReplayBuffer] = useState<Event[]>([]);
   const [playhead, setPlayhead] = useState(0);
@@ -136,6 +139,7 @@ export default function App() {
           units: msg.units,
           events: [],
           turn: msg.turn,
+          stage: msg.stage,
           active: msg.active,
           winner: msg.winner,
           gameOver: msg.game_over,
@@ -164,6 +168,7 @@ export default function App() {
                 ...s,
                 units: msg.units,
                 turn: msg.turn,
+                stage: msg.stage,
                 active: msg.active,
                 winner: msg.winner,
                 gameOver: msg.game_over,
@@ -270,8 +275,9 @@ export default function App() {
             <span>Mode: <b>{mode || '—'}</b></span>
             {spec && (
               <>
-                <span>Turn: <b>{spec.turn}/{spec.horizon}</b></span>
-                <span>Active: <b>{spec.active}</b></span>
+                <span key={`${spec.turn}-${spec.stage}-${spec.active}`} className="phase-indicator">
+                  Week <b>{spec.turn}/{spec.horizon}</b> · Stage <b>{spec.stage}/3</b> · <b>{spec.active}</b>
+                </span>
                 <span>Allied: <b>{spec.allied}</b></span>
                 <span>Axis: <b>{spec.axis}</b></span>
                 {spec.done && (
@@ -313,7 +319,20 @@ export default function App() {
             )}
           </div>
           {spec?.map ? (
-            <HexMap map={spec.map} units={spec.units} depots={spec.depots} objectives={spec.objectives} />
+            <>
+              <HexMap
+                map={spec.map}
+                units={spec.units}
+                depots={spec.depots}
+                objectives={spec.objectives}
+                selectedId={selectedId}
+                onSelect={(u) => setSelectedId(u ? u.id : null)}
+              />
+              {(() => {
+                const sel = spec.units.find((u) => u.id === selectedId);
+                return sel ? <UnitDetail unit={sel} onClose={() => setSelectedId(null)} /> : null;
+              })()}
+            </>
           ) : (
             <div className="empty">Start or spectate a game to watch it unfold.</div>
           )}

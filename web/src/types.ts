@@ -47,6 +47,10 @@ export interface Unit {
   supply: string;
   missions: number;
   missions_allowance: number;
+  ammo: number;
+  ammo_capacity: number;
+  water: number;
+  water_capacity: number;
   hex: Hex | null;
   has_attacked: boolean;
 }
@@ -104,13 +108,14 @@ export type WsMessage =
       allied: string;
       axis: string;
       turn: number;
+      stage: number;
       active: Side;
       winner: Side | null;
       game_over: boolean;
       units: Unit[];
     }
   | { type: 'events'; events: Event[] }
-  | { type: 'state'; units: Unit[]; turn: number; active: Side; winner: Side | null; game_over: boolean }
+  | { type: 'state'; units: Unit[]; turn: number; stage: number; active: Side; winner: Side | null; game_over: boolean }
   | { type: 'done'; winner: Side | null; turns: number; illegal_allied: number; illegal_axis: number }
   | { type: 'error'; message: string };
 
