@@ -30,6 +30,7 @@ pub struct GameState {
     pub map: Map,
     pub units: HashMap<UnitId, Unit>,
     pub turn: u32,
+    pub stage: u8,
     pub phase: Phase,
     pub active: Side,
     pub(crate) first_this_turn: Side,
@@ -77,6 +78,7 @@ impl GameState {
             map: scenario.map,
             units,
             turn: 1,
+            stage: 1,
             phase: Phase::Supply,
             active: first,
             first_this_turn: first,
@@ -98,20 +100,37 @@ impl GameState {
             seed,
             turn_horizon: state.turn_horizon,
         });
-        state.begin_side_turn();
+        state.begin_week();
         state
     }
 
     // ---- turn sequencing (also called from rules on EndTurn) ----
 
-    pub(crate) fn begin_side_turn(&mut self) {
+    fn roll_first(&mut self) -> Side {
+        if self.rng.below(2) == 0 {
+            Side::Allied
+        } else {
+            Side::Axis
+        }
+    }
+
+    /// Start a new Game-Turn (week): reinforcements, initiative, weekly supply and
+    /// attrition for both sides, then the first Operations Stage.
+    pub(crate) fn begin_week(&mut self) {
         self.place_reinforcements();
+        self.stage = 1;
+        self.first_this_turn = self.roll_first();
         self.log.push(Event::TurnStart {
             turn: self.turn,
-            side: self.active,
+            side: self.first_this_turn,
         });
-        self.run_supply();
-        self.reset_and_attrition();
+        for side in [Side::Allied, Side::Axis] {
+            self.active = side;
+            self.run_supply();
+            self.weekly_attrition();
+        }
+        self.active = self.first_this_turn;
+        self.reset_stage();
         self.phase = Phase::Movement;
     }
 
@@ -124,22 +143,24 @@ impl GameState {
             return;
         }
         if self.active == self.first_this_turn.other() {
-            // Both sides have gone this turn; advance and roll fresh initiative.
-            if self.turn >= self.turn_horizon {
-                self.resolve_horizon();
-                return;
-            }
-            self.turn += 1;
-            self.first_this_turn = if self.rng.below(2) == 0 {
-                Side::Allied
+            // Both sides have acted this Operations Stage.
+            if self.stage >= 3 {
+                if self.turn >= self.turn_horizon {
+                    self.resolve_horizon();
+                    return;
+                }
+                self.turn += 1;
+                self.begin_week();
             } else {
-                Side::Axis
-            };
-            self.active = self.first_this_turn;
+                self.stage += 1;
+                self.first_this_turn = self.roll_first();
+                self.active = self.first_this_turn;
+                self.reset_stage();
+            }
         } else {
             self.active = self.first_this_turn.other();
+            self.reset_stage();
         }
-        self.begin_side_turn();
     }
 
     fn place_reinforcements(&mut self) {
@@ -267,7 +288,7 @@ impl GameState {
         }
     }
 
-    fn reset_and_attrition(&mut self) {
+    fn weekly_attrition(&mut self) {
         let side = self.active;
 
         // Collect ids first to satisfy the borrow checker.
@@ -280,16 +301,6 @@ impl GameState {
 
         for id in ids {
             let unit = self.units.get_mut(&id).unwrap();
-
-            // Fresh movement allowance; out-of-supply units move at half rate.
-            let mut allowance = unit.kind.movement_allowance();
-            if unit.supply == SupplyStatus::OutOfSupply {
-                allowance = (allowance / 2).max(1);
-            }
-            unit.movement_allowance = allowance;
-            unit.movement = allowance;
-            unit.missions = unit.missions_allowance;
-            unit.has_attacked = false;
 
             // Refuel/rearm/resupply in-supply units from the supply line.
             if unit.supply == SupplyStatus::InSupply {
@@ -339,6 +350,28 @@ impl GameState {
                     self.eliminate_unit(id, "attrition (out of supply)");
                 }
             }
+        }
+    }
+
+    /// Per-Operations-Stage reset: fresh CP allowance, missions, and attack flag.
+    fn reset_stage(&mut self) {
+        let side = self.active;
+        let ids: Vec<UnitId> = self
+            .units
+            .values()
+            .filter(|u| !u.eliminated() && u.side == side)
+            .map(|u| u.id)
+            .collect();
+        for id in ids {
+            let unit = self.units.get_mut(&id).unwrap();
+            let mut allowance = unit.kind.movement_allowance();
+            if unit.supply == SupplyStatus::OutOfSupply {
+                allowance = (allowance / 2).max(1);
+            }
+            unit.movement_allowance = allowance;
+            unit.movement = allowance;
+            unit.missions = unit.missions_allowance;
+            unit.has_attacked = false;
         }
     }
 

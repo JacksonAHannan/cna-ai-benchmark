@@ -15,7 +15,7 @@ public descriptions where exact chart values were not available, marked and judg
 
 | Subsystem | Status | Notes |
 |---|---|---|
-| Turn = 1 week; both sides act per turn | faithful | Per-turn **initiative roll** decides first mover (research-corrected; not fixed Allied-first) |
+| Turn = 1 week = 3 Operations Stages | faithful | Per-stage initiative roll; weekly supply/attrition, per-stage CP reset |
 | Phase order: Supply → Attrition → Movement → Combat → Air → RearArea | faithful | Order fixed by engine |
 | Fuel evaporation per turn | faithful | **6% baseline / 9% Commonwealth** through Aug 1941 (research-corrected §49.3); hot-weather +5% not yet modeled |
 | Italian extra water demand ("pasta rule") | faithful | Higher supply demand for Italian infantry; gates movement/full-strength combat |
