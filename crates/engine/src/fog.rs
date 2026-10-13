@@ -1,7 +1,7 @@
 //! Fog-of-war observations: what a side may see.
 
 use crate::events::Event;
-use crate::map::{Hex, Site};
+use crate::map::{Hex, Site, Terrain};
 use crate::side::Side;
 use crate::state::GameState;
 use crate::unit::{Unit, UnitId, UnitType};
@@ -63,6 +63,8 @@ pub struct Observation {
     /// Compact terrain grid (offset rows, char codes). Fog-of-war hides units,
     /// not geography; terrain is public and cheap to serialize.
     pub terrain: Vec<String>,
+    /// Top-left origin of the terrain window, in offset (row, col) coordinates.
+    pub terrain_origin: [i16; 2],
     /// Visible units: the side's own units in full, enemy units only if detected
     /// (within detection range or in a reconnoitered hex).
     pub units: Vec<Unit>,
@@ -75,6 +77,52 @@ pub struct Observation {
 }
 
 impl GameState {
+    /// Compute a terrain grid window around the side's units plus its top-left
+    /// origin in offset (row, col) coordinates, so observations send only the
+    /// relevant board rather than the full map.
+    fn terrain_window(&self, side: Side, radius: i16) -> (Vec<String>, i16, i16) {
+        let mut min_r = i16::MAX;
+        let mut max_r = i16::MIN;
+        let mut min_c = i16::MAX;
+        let mut max_c = i16::MIN;
+        let mut any = false;
+        for u in self.units.values() {
+            if u.side != side || u.eliminated() {
+                continue;
+            }
+            if let Some(h) = u.hex {
+                let (r, c) = h.to_offset();
+                min_r = min_r.min(r);
+                max_r = max_r.max(r);
+                min_c = min_c.min(c);
+                max_c = max_c.max(c);
+                any = true;
+            }
+        }
+        if !any {
+            return (self.map.terrain_grid(), 0, 0);
+        }
+        let r0 = (min_r - radius).max(0);
+        let r1 = (max_r + radius).min(self.map.rows - 1);
+        let c0 = (min_c - radius).max(0);
+        let c1 = (max_c + radius).min(self.map.cols - 1);
+        let mut rows = Vec::with_capacity((r1 - r0 + 1) as usize);
+        for row in r0..=r1 {
+            let mut s = String::with_capacity((c1 - c0 + 1) as usize);
+            for col in c0..=c1 {
+                let hex = Hex::from_offset(row, col);
+                let t = self
+                    .map
+                    .get(hex)
+                    .map(|m| m.terrain)
+                    .unwrap_or(Terrain::Sea);
+                s.push(t.code());
+            }
+            rows.push(s);
+        }
+        (rows, r0, c0)
+    }
+
     pub fn observation(&self, side: Side) -> Observation {
         let mut units = Vec::new();
         for u in self.units.values() {
@@ -165,6 +213,8 @@ impl GameState {
             },
         ];
 
+        let (terrain, tr, tc) = self.terrain_window(side, 20);
+
         Observation {
             scenario: self.scenario_name.clone(),
             turn: self.turn,
@@ -173,7 +223,8 @@ impl GameState {
             viewer: side,
             game_over: self.game_over,
             winner: self.winner,
-            terrain: self.map.terrain_grid(),
+            terrain,
+            terrain_origin: [tr, tc],
             units,
             depots,
             objectives: self.map.objectives.clone(),

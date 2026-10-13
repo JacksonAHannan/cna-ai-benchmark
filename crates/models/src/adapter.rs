@@ -49,13 +49,14 @@ pub enum ModelError {
 pub trait Agent: Send + Sync {
     fn name(&self) -> &str;
 
-    /// Produce the next action for the given observation. `feedback` carries the
-    /// previous action's validation error (if any) so the model can correct itself.
+    /// Produce the next turn's plan — an ordered list of actions. `feedback`
+    /// carries the previous plan's first validation error (if any) so the model
+    /// can correct itself.
     async fn act(
         &self,
         obs: &Observation,
         feedback: Option<&ActionError>,
-    ) -> Result<Action, ModelError>;
+    ) -> Result<Vec<Action>, ModelError>;
 
     /// Free-form text generation — used for post-game strategy narratives.
     async fn chat(&self, system: &str, user: &str) -> Result<String, ModelError>;
@@ -74,18 +75,18 @@ pub fn build_agent(config: &AgentConfig) -> Box<dyn Agent> {
 /// The system prompt and JSON action schema shared by all LLM agents.
 pub const ACTION_SCHEMA_DOC: &str = r#"You are a wargame commander in a digital adaptation of SPI's "The Campaign for North Africa" (faithful-in-spirit: weekly turns, logistics, fuel evaporation, the Italian pasta-water rule, fog of war).
 
-You receive a JSON observation of the game and must respond with EXACTLY ONE JSON action — nothing else, no commentary, no markdown fences.
+You receive a JSON observation and respond with a JSON ARRAY of actions — your whole plan for this turn, in the order you want them applied. You may move several units, attack, bomb, recon, then endTurn. Respond with raw JSON only — no commentary, no markdown fences.
 
 Action variants (hexes are {"q":int,"r":int} axial coordinates):
-- {"type":"move","unit":<unitId>,"path":[<hex>,...]}   path[0] must equal the unit's current hex; each step must be adjacent, passable, and unoccupied.
-- {"type":"attack","attacker":<unitId>,"target":<unitId>,"airSupport":[<airUnitId>,...]}  attacker must be adjacent (artillery 1-2 hexes); target must be visible.
+- {"type":"move","unit":<unitId>,"path":[<hex>,...]}   path[0] must equal the unit's current hex; each step adjacent, passable, unoccupied.
+- {"type":"attack","attacker":<unitId>,"target":<unitId>,"airSupport":[<airUnitId>,...]}  attacker adjacent (artillery 1-2 hexes); target visible.
 - {"type":"airRecon","squadron":<airUnitId>,"target":<hex>}  reveals enemy units in/around the hex.
-- {"type":"bomb","squadron":<airUnitId>,"target":<hex>}  bombs a depot (disrupts supply) or pins enemy units; enemy air within 15 hexes may scramble to intercept.
+- {"type":"bomb","squadron":<airUnitId>,"target":<hex>}  bombs a depot (disrupts supply) or pins enemies; enemy air within 15 hexes may scramble.
 - {"type":"pass"}
-- {"type":"endTurn"}
+- {"type":"endTurn"}   end the turn when you are finished.
 
 Key rules:
-- terrain is an array of map rows; hex {"q":q,"r":r} is at row=r, column=q+(r-(r&1))/2. Codes: S sea, D desert, R road, C coast, E escarpment, O oasis, V village.
+- terrain is an array of map rows; hex {"q":q,"r":r} is at terrain row = r - terrainOrigin[0], column = q + (r - (r&1))/2 - terrainOrigin[1]. terrainOrigin is in the observation. Codes: S sea, . clear, D desert, G rough, M mountain, L salt marsh, B rock/gravel, F heavy vegetation, A delta, W swamp, E escarpment, R road, T track, C coast, O oasis, V village, K major city.
 - Out-of-supply units move at half rate and lose strength each turn.
 - Mobile units burn fuel to move; fuel evaporates each turn (6%, 9% for Commonwealth).
 - Italian units draw extra water for pasta.
@@ -130,6 +131,48 @@ pub fn parse_action(content: &str) -> Result<Action, ModelError> {
     }
     let snippet: String = content.chars().take(120).collect();
     Err(ModelError::Parse(format!("no valid JSON in: {snippet}…")))
+}
+
+/// Parse a model's turn plan — a JSON array of actions — tolerating a single
+/// action object, markdown fences, and surrounding prose.
+pub fn parse_plan(content: &str) -> Result<Vec<Action>, ModelError> {
+    let trimmed = content.trim();
+    // 1. Direct array.
+    if let Ok(actions) = serde_json::from_str::<Vec<Action>>(trimmed) {
+        if !actions.is_empty() {
+            return Ok(actions);
+        }
+    }
+    // 2. Single action object → wrap in a one-element plan.
+    if let Ok(action) = serde_json::from_str::<Action>(trimmed) {
+        return Ok(vec![action]);
+    }
+    // 3. First `[...]` embedded in noise.
+    if let (Some(start), Some(end)) = (content.find('['), content.rfind(']')) {
+        if end > start {
+            if let Ok(actions) = serde_json::from_str::<Vec<Action>>(&content[start..=end]) {
+                if !actions.is_empty() {
+                    return Ok(actions);
+                }
+            }
+        }
+    }
+    // 4. First `{...}` embedded in noise → single action.
+    if let (Some(start), Some(end)) = (content.find('{'), content.rfind('}')) {
+        if end > start {
+            if let Ok(action) = serde_json::from_str::<Action>(&content[start..=end]) {
+                return Ok(vec![action]);
+            }
+        }
+    }
+    // 5. XML `<parameter>` form → single action.
+    if let Some(v) = xml_parameters_to_json(content) {
+        if let Ok(action) = serde_json::from_value(v) {
+            return Ok(vec![action]);
+        }
+    }
+    let snippet: String = content.chars().take(120).collect();
+    Err(ModelError::Parse(format!("no valid action plan in: {snippet}…")))
 }
 
 fn xml_parameters_to_json(content: &str) -> Option<serde_json::Value> {

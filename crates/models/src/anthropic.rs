@@ -39,7 +39,7 @@ impl Agent for AnthropicAgent {
         &self,
         obs: &Observation,
         feedback: Option<&ActionError>,
-    ) -> Result<Action, ModelError> {
+    ) -> Result<Vec<Action>, ModelError> {
         let obs_json = serde_json::to_string(obs).map_err(|e| ModelError::Parse(e.to_string()))?;
         let mut body = json!({
             "model": self.model,
@@ -74,8 +74,8 @@ impl Agent for AnthropicAgent {
             serde_json::from_str(&text).map_err(|e| ModelError::Parse(e.to_string()))?;
         let content = extract_text(&v)
             .ok_or_else(|| ModelError::Parse("no assistant text content".to_string()))?;
-        let action: Action = crate::adapter::parse_action(&content)?;
-        Ok(action)
+        let plan: Vec<Action> = crate::adapter::parse_plan(&content)?;
+        Ok(plan)
     }
 
     async fn chat(&self, system: &str, user: &str) -> Result<String, ModelError> {

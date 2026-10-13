@@ -50,7 +50,7 @@ impl Agent for MockAgent {
         &self,
         obs: &Observation,
         feedback: Option<&ActionError>,
-    ) -> Result<Action, ModelError> {
+    ) -> Result<Vec<Action>, ModelError> {
         let mut st = self.state.lock();
         if st.turn != obs.turn {
             st.reset(obs.turn);
@@ -66,7 +66,7 @@ impl Agent for MockAgent {
         } else {
             st.last_move = None;
         }
-        Ok(action)
+        Ok(vec![action])
     }
 
     async fn chat(&self, _system: &str, _user: &str) -> Result<String, ModelError> {

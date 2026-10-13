@@ -4,11 +4,11 @@
 //! one place.
 
 use crate::Agent;
-use cna_engine::{Action, ActionError, ActionErrorKind, Event, GameState, Role, Side, UnitId};
+use cna_engine::{Action, ActionError, Event, GameState, Role, Side, UnitId};
 use std::sync::Arc;
 
-pub const MAX_STEPS_PER_TURN: usize = 200;
-pub const MAX_RETRIES: usize = 4;
+/// Max plan submissions per side per turn (a plan is a batch of actions).
+pub const MAX_PLANS_PER_TURN: usize = 40;
 
 #[derive(Debug, Clone)]
 pub struct GameStats {
@@ -37,51 +37,55 @@ pub async fn run_streaming(
             axis.as_ref()
         };
 
-        let mut steps = 0usize;
+        let mut plans = 0usize;
         let mut feedback: Option<ActionError> = None;
-        let mut consecutive = 0usize;
 
         loop {
-            if steps >= MAX_STEPS_PER_TURN || state.is_over() {
+            if plans >= MAX_PLANS_PER_TURN || state.is_over() {
                 break;
             }
 
             let obs = state.observation(side);
-            let action = match agent.act(&obs, feedback.as_ref()).await {
-                Ok(a) => a,
+            let plan = match agent.act(&obs, feedback.as_ref()).await {
+                Ok(p) => p,
                 Err(e) => {
                     eprintln!("[{}] model error: {e}", agent.name());
                     break;
                 }
             };
 
-            match state.apply(side, &action) {
-                Ok(events) => {
-                    steps += 1;
-                    consecutive = 0;
-                    feedback = None;
-                    if !events.is_empty() {
-                        on_events(events, &state);
+            let mut first_error: Option<ActionError> = None;
+            let mut ended = false;
+            let mut acted = false;
+            for action in plan {
+                match state.apply(side, &action) {
+                    Ok(events) => {
+                        acted = true;
+                        if !events.is_empty() {
+                            on_events(events, &state);
+                        }
+                        if matches!(action, Action::EndTurn) || state.is_over() {
+                            ended = true;
+                            break;
+                        }
                     }
-                    if matches!(action, Action::EndTurn) || state.is_over() {
-                        break;
+                    Err(e) => {
+                        if side == Side::Allied {
+                            illegal_allied += 1;
+                        } else {
+                            illegal_axis += 1;
+                        }
+                        if first_error.is_none() {
+                            first_error = Some(e);
+                        }
                     }
                 }
-                Err(e) => {
-                    steps += 1;
-                    consecutive += 1;
-                    if side == Side::Allied {
-                        illegal_allied += 1;
-                    } else {
-                        illegal_axis += 1;
-                    }
-                    if consecutive > MAX_RETRIES {
-                        consecutive = 0;
-                        feedback = None;
-                    } else {
-                        feedback = Some(e);
-                    }
-                }
+            }
+
+            plans += 1;
+            feedback = first_error;
+            if ended || !acted || state.is_over() {
+                break;
             }
         }
 
@@ -146,32 +150,31 @@ pub async fn run_streaming_team(
         let side = state.active;
         let team = if side == Side::Allied { &allied } else { &axis };
 
-        let mut steps = 0usize;
+        let mut plans = 0usize;
         'turn: loop {
-            if steps >= MAX_STEPS_PER_TURN || state.is_over() {
+            if plans >= MAX_PLANS_PER_TURN || state.is_over() {
                 break;
             }
             let mut acted = false;
             for (i, &role) in ROLES.iter().enumerate() {
-                if state.is_over() || steps >= MAX_STEPS_PER_TURN {
+                if state.is_over() {
                     break 'turn;
                 }
                 let agent = team[i].as_ref();
-                let mut feedback: Option<ActionError> = None;
-                let mut consecutive = 0usize;
-                loop {
-                    if state.is_over() || steps >= MAX_STEPS_PER_TURN {
+                let obs = state.role_observation(role, side);
+                let plan = match agent.act(&obs, None).await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        eprintln!("[{}] model error: {e}", agent.name());
+                        continue;
+                    }
+                };
+
+                let mut ended = false;
+                for action in plan {
+                    if state.is_over() {
                         break 'turn;
                     }
-                    let obs = state.role_observation(role, side);
-                    let action = match agent.act(&obs, feedback.as_ref()).await {
-                        Ok(a) => a,
-                        Err(e) => {
-                            eprintln!("[{}] model error: {e}", agent.name());
-                            break;
-                        }
-                    };
-
                     // Role-control check: a role may only command its own units.
                     let controls = controlled_units(&action).iter().all(|&u| {
                         state
@@ -181,56 +184,38 @@ pub async fn run_streaming_team(
                             .unwrap_or(false)
                     });
                     if !controls {
-                        steps += 1;
-                        consecutive += 1;
                         if side == Side::Allied {
                             illegal_allied += 1;
                         } else {
                             illegal_axis += 1;
                         }
-                        feedback = Some(ActionError::new(
-                            ActionErrorKind::NotYourUnit,
-                            "role does not command that unit",
-                        ));
-                        if consecutive > MAX_RETRIES {
-                            break;
-                        }
                         continue;
                     }
-
                     match state.apply(side, &action) {
                         Ok(events) => {
-                            steps += 1;
                             acted = true;
-                            consecutive = 0;
-                            feedback = None;
                             if !events.is_empty() {
                                 on_events(events, &state);
                             }
-                            if matches!(action, Action::EndTurn) || state.is_over() {
-                                break 'turn;
-                            }
-                            if matches!(action, Action::Pass) {
-                                break; // next role
+                            if matches!(action, Action::EndTurn) {
+                                ended = true;
+                                break;
                             }
                         }
-                        Err(e) => {
-                            steps += 1;
-                            consecutive += 1;
+                        Err(_) => {
                             if side == Side::Allied {
                                 illegal_allied += 1;
                             } else {
                                 illegal_axis += 1;
                             }
-                            if consecutive > MAX_RETRIES {
-                                break;
-                            } else {
-                                feedback = Some(e);
-                            }
                         }
                     }
                 }
+                if ended {
+                    break 'turn;
+                }
             }
+            plans += 1;
             if !acted {
                 break; // no role acted; avoid a livelock
             }

@@ -23,16 +23,18 @@ async fn main() {
         };
         let obs = state.observation(side);
         match agent.act(&obs, feedback.as_ref()).await {
-            Ok(action) => {
-                println!("[{step:02}] {side:<6} {action:?}");
-                match state.apply(side, &action) {
-                    Ok(events) => {
-                        println!("       -> ok ({} events)", events.len());
-                        feedback = None;
-                    }
-                    Err(e) => {
-                        println!("       !! illegal: {}", e.message);
-                        feedback = Some(e);
+            Ok(plan) => {
+                for action in plan {
+                    println!("[{step:02}] {side:<6} {action:?}");
+                    match state.apply(side, &action) {
+                        Ok(events) => {
+                            println!("       -> ok ({} events)", events.len());
+                            feedback = None;
+                        }
+                        Err(e) => {
+                            println!("       !! illegal: {}", e.message);
+                            feedback = Some(e);
+                        }
                     }
                 }
             }
