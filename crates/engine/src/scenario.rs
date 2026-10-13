@@ -1,6 +1,6 @@
 //! Scenarios: bounded map + roster + victory horizon.
 
-use crate::map::{Map, Terrain};
+use crate::map::{Hex, Map, Terrain};
 use crate::side::{Nationality, Side};
 use crate::unit::{Organization, UnitType};
 use serde::{Deserialize, Serialize};
@@ -147,6 +147,38 @@ pub fn default_scenario() -> Scenario {
         units,
         reinforcements,
     }
+}
+
+/// Parse the transcribed CNA map (docs/data/map-terrain.md) into a full `Map`.
+/// Unresolved (`?`) cells default to Sea. Sheet shifts: A=0, B=33, C=66, D=99,
+/// E=132 (docs/data/map-geometry.md).
+pub fn full_map() -> Map {
+    let text = include_str!("../../../docs/data/map-terrain.md");
+    let sheets: [(&str, i16); 5] = [("A", 0), ("B", 33), ("C", 66), ("D", 99), ("E", 132)];
+    let mut cells = Vec::new();
+    for (name, t) in sheets {
+        let marker = format!("## Sheet {name}");
+        let Some(sec) = text.split(&marker).nth(1) else {
+            continue;
+        };
+        let grid = sec.split("\n## ").next().unwrap_or(sec);
+        for line in grid.lines() {
+            let mut parts = line.split_whitespace();
+            let Ok(rr) = parts.next().unwrap_or("").parse::<i16>() else {
+                continue;
+            };
+            let Some(row) = parts.next() else { continue };
+            for (i, ch) in row.chars().enumerate() {
+                let cc = i as i16 + 1;
+                if let Some(terrain) = Terrain::from_transcription_code(ch) {
+                    let q = cc;
+                    let r = rr + t - (cc + 1) / 2;
+                    cells.push((Hex::new(q, r), terrain));
+                }
+            }
+        }
+    }
+    Map::from_axial_hexes(cells)
 }
 
 impl Scenario {
