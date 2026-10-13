@@ -526,7 +526,8 @@ impl GameState {
             su.missions -= 1;
         }
 
-        // Interception: strongest enemy air within 4 hexes of the target.
+        // Scramble (§40.4): enemy fighters within 15 hexes roll to intercept,
+        // stronger squadrons first.
         let mut interceptors: Vec<UnitId> = self
             .units
             .values()
@@ -534,18 +535,26 @@ impl GameState {
                 !u.eliminated()
                     && u.side != side
                     && u.kind == UnitType::Air
-                    && u.hex.map(|h| h.distance(target) <= 4).unwrap_or(false)
+                    && u.hex.map(|h| h.distance(target) <= 15).unwrap_or(false)
             })
             .map(|u| u.id)
             .collect();
         interceptors.sort_by_key(|&id| std::cmp::Reverse(self.units[&id].strength));
 
         let mut intercepted = false;
-        if let Some(defender) = interceptors.into_iter().next() {
-            intercepted = true;
-            self.air_combat(squadron, defender);
-            if self.units.get(&squadron).unwrap().eliminated() {
-                return;
+        for defender in interceptors {
+            let dist = self.units[&defender].hex.unwrap().distance(target);
+            let roll = self.rng.between(1, 6) as u8;
+            if crate::charts::scramble_max(dist)
+                .map(|max| roll <= max)
+                .unwrap_or(false)
+            {
+                intercepted = true;
+                self.air_combat(squadron, defender);
+                if self.units.get(&squadron).unwrap().eliminated() {
+                    return;
+                }
+                break;
             }
         }
 

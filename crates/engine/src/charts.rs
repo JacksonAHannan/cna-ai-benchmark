@@ -229,6 +229,20 @@ pub fn bomb_supply_loss(points: u32, roll: u8) -> u8 {
     loss_for(BOMB_SUPPLY[bomb_column(points)], roll)
 }
 
+/// Maximum successful scramble die by target distance in hexes (§40.4).
+/// `None` when the target is beyond scramble range (16+ hexes).
+pub fn scramble_max(distance: i32) -> Option<u8> {
+    match distance {
+        0..=2 => Some(6),
+        3..=4 => Some(5),
+        5..=6 => Some(4),
+        7..=8 => Some(3),
+        9..=10 => Some(2),
+        11..=15 => Some(1),
+        _ => None,
+    }
+}
+
 // === Supply/logistics chart (§2, §54) ===
 
 /// Tons per supply point of each resource (§54.5).
