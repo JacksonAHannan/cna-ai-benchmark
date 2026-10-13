@@ -2,7 +2,7 @@
 //! updates Elo, and persists each game's event log for later spectating/replay.
 
 use cna_engine::{default_scenario, Event, GameState, Side};
-use cna_models::{build_agent, run_streaming, Agent, AgentConfig};
+use cna_models::{build_agent, run_streaming, run_streaming_team, Agent, AgentConfig};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -53,6 +53,28 @@ async fn run_game(
     }
 }
 
+async fn run_team_game(
+    team_a: [Arc<dyn Agent>; 5],
+    team_b: [Arc<dyn Agent>; 5],
+    seed: u64,
+    turns: Option<u32>,
+) -> GameResult {
+    let mut scenario = default_scenario();
+    if let Some(t) = turns {
+        scenario.turn_horizon = t;
+    }
+    let state = GameState::new(scenario, seed);
+    let mut events = Vec::new();
+    let stats = run_streaming_team(state, team_a, team_b, |ev, _st| events.extend(ev)).await;
+    GameResult {
+        winner: stats.winner,
+        turns: stats.turns,
+        illegal_allied: stats.illegal_allied,
+        illegal_axis: stats.illegal_axis,
+        events,
+    }
+}
+
 fn expected(ra: f64, rb: f64) -> f64 {
     1.0 / (1.0 + 10f64.powf((rb - ra) / 400.0))
 }
@@ -70,11 +92,12 @@ fn outcome_score(winner: Option<Side>) -> (f64, f64) {
     }
 }
 
-fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>) {
+fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>, bool) {
     let mut games = DEFAULT_GAMES_PER_PAIR;
     let mut seed = DEFAULT_SEED;
     let mut config: Option<PathBuf> = None;
     let mut turns: Option<u32> = None;
+    let mut teams = false;
 
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -95,10 +118,13 @@ fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>) {
             "--turns" => {
                 turns = args.next().and_then(|v| v.parse().ok());
             }
+            "--teams" => {
+                teams = true;
+            }
             _ => {}
         }
     }
-    (games, seed, config, turns)
+    (games, seed, config, turns, teams)
 }
 
 fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
@@ -118,7 +144,24 @@ fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
 
 #[tokio::main]
 async fn main() {
-    let (games_per_pair, seed_base, config, turns) = parse_args();
+    let (games_per_pair, seed_base, config, turns, teams) = parse_args();
+
+    if teams {
+        // 5v5 smoke run: five mock roles per side.
+        let team_a: [Arc<dyn Agent>; 5] = std::array::from_fn(|i| {
+            Arc::from(build_agent(&AgentConfig::mock(&format!("mock-a-{i}"))))
+        });
+        let team_b: [Arc<dyn Agent>; 5] = std::array::from_fn(|i| {
+            Arc::from(build_agent(&AgentConfig::mock(&format!("mock-b-{i}"))))
+        });
+        let r = run_team_game(team_a, team_b, seed_base, turns).await;
+        println!(
+            "5v5: winner={:?} turns={} illegal_allied={} illegal_axis={}",
+            r.winner, r.turns, r.illegal_allied, r.illegal_axis
+        );
+        return;
+    }
+
     let players = load_agents(config);
 
     if players.len() < 2 {

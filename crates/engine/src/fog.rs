@@ -18,6 +18,24 @@ pub enum Role {
     FrontLine,
 }
 
+impl Role {
+    /// Whether this role controls the given unit in 5v5 play (§9 command
+    /// partition). CinC commands any unit; Air commands air; FrontLine commands
+    /// armor/motorized/infantry; Logistics commands artillery; RearArea none.
+    pub fn controls(self, unit: &Unit) -> bool {
+        match self {
+            Role::CinC => true,
+            Role::Air => unit.kind == UnitType::Air,
+            Role::FrontLine => matches!(
+                unit.kind,
+                UnitType::Armor | UnitType::Motorized | UnitType::Infantry
+            ),
+            Role::Logistics => unit.kind == UnitType::Artillery,
+            Role::RearArea => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoleView {
     pub role: Role,
@@ -162,5 +180,13 @@ impl GameState {
             recent_events,
             role_views,
         }
+    }
+
+    /// Role-scoped observation for 5v5 play: the role sees its own controlled
+    /// units (own side only) plus all visible enemy units for targeting.
+    pub fn role_observation(&self, role: Role, side: Side) -> Observation {
+        let mut obs = self.observation(side);
+        obs.units.retain(|u| u.side != side || role.controls(u));
+        obs
     }
 }

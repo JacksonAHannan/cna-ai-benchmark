@@ -7,4 +7,4 @@ pub mod mock;
 pub mod openai;
 
 pub use adapter::{build_agent, Agent, AgentConfig, ModelError, Provider, ACTION_SCHEMA_DOC};
-pub use game::{run_streaming, GameStats};
+pub use game::{run_streaming, run_streaming_team, GameStats};
