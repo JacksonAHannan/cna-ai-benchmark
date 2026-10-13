@@ -71,6 +71,10 @@ pub struct Unit {
     /// means the unit cannot attack.
     pub ammo: u8,
     pub ammo_capacity: u8,
+    /// Water points: refilled when in supply, consumed per turn (Italian +1 for
+    /// pasta). Waterless units cannot move or attack, and defend at half strength.
+    pub water: u8,
+    pub water_capacity: u8,
     /// `None` once eliminated (or not yet deployed).
     pub hex: Option<Hex>,
     pub has_attacked: bool,
@@ -114,6 +118,8 @@ impl Unit {
             missions_allowance: 2,
             ammo: ammo_capacity,
             ammo_capacity,
+            water: 2,
+            water_capacity: 2,
             hex: Some(hex),
             has_attacked: false,
         }
@@ -123,13 +129,17 @@ impl Unit {
         self.hex.is_none()
     }
 
-    /// Italian troops need extra water to prepare pasta: +1 supply draw.
-    pub fn supply_draw(&self) -> u32 {
-        let base = self.kind.supply_draw();
+    /// Stores (food/misc) demand per turn.
+    pub fn stores_draw(&self) -> u32 {
+        self.kind.supply_draw()
+    }
+
+    /// Water demand per turn. Italian troops need +1 to prepare pasta.
+    pub fn water_draw(&self) -> u32 {
         if self.nationality.needs_pasta_water() {
-            base + 1
+            2
         } else {
-            base
+            1
         }
     }
 }

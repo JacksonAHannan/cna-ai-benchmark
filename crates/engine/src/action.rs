@@ -41,6 +41,7 @@ pub enum ActionErrorKind {
     NotEnoughMovement,
     OutOfFuel,
     OutOfAmmo,
+    OutOfWater,
     OutOfSupply,
     NotAdjacent,
     NotInRange,

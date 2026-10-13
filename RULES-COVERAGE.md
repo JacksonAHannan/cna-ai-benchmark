@@ -21,6 +21,7 @@ public descriptions where exact chart values were not available, marked and judg
 | Italian extra water demand ("pasta rule") | faithful | Higher supply demand for Italian infantry; gates movement/full-strength combat |
 | Supply lines traced to Depots over Road/Coast | faithful | Out-of-supply penalties; depot capacities reflect published port tonnage (Tripoli/Alexandria major, Benghazi ~1/6) |
 | Ammunition resource | faithful | Ammo points refilled in supply, consumed per attack; no ammo → cannot attack |
+| Water resource | faithful | Water points refilled in supply, consumed per turn (Italian +1 pasta); waterless units can't move/attack and defend at half strength |
 | Hex movement with terrain cost + fuel burn | reconstructed | Terrain costs are plausible values, not CNA's exact MP chart |
 | Differential CRT combat (percentage losses, retreat) | reconstructed | 18-column differential structure faithful; column values reconstructed (`docs/cna-rules.md` §15) |
 | Air game: recon, ground support, strategic bombing, interception | reconstructed | Bombing disrupts depot supply; enemy air within 4 hexes intercepts (air-to-air losses); refit/sortie detail not yet modeled |

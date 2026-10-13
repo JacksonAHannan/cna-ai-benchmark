@@ -164,6 +164,12 @@ impl GameState {
                 format!("needs {fuel} fuel, has {}", unit.fuel),
             ));
         }
+        if unit.water == 0 {
+            return Err(ActionError::new(
+                ActionErrorKind::OutOfWater,
+                "unit has no water",
+            ));
+        }
         Ok(())
     }
 
@@ -232,6 +238,12 @@ impl GameState {
             return Err(ActionError::new(
                 ActionErrorKind::OutOfAmmo,
                 "unit has no ammunition",
+            ));
+        }
+        if a.water == 0 {
+            return Err(ActionError::new(
+                ActionErrorKind::OutOfWater,
+                "unit has no water",
             ));
         }
 
@@ -321,7 +333,10 @@ impl GameState {
         if a.supply == SupplyStatus::OutOfSupply {
             a_str = (a_str / 2).max(1);
         }
-        let d_str = (t.strength as u32).max(1);
+        let mut d_str = (t.strength as u32).max(1);
+        if t.water == 0 {
+            d_str = (d_str / 2).max(1); // waterless defenders fight at half strength
+        }
 
         let terrain_shift = self
             .map
@@ -665,5 +680,39 @@ mod tests {
         let after = state.depot_damage.get(&depot).copied().unwrap_or(0);
         assert!(after > before, "depot damage should increase after a bomb");
         assert!(state.log.events.iter().any(|e| matches!(e, Event::Bomb { .. })));
+    }
+
+    #[test]
+    fn waterless_unit_cannot_move() {
+        let mut state = GameState::new(default_scenario(), 13);
+        let side = state.active;
+        let unit_id = state
+            .units
+            .values()
+            .find(|u| u.side == side && u.kind == UnitType::Infantry)
+            .expect("active side has infantry")
+            .id;
+        state.units.get_mut(&unit_id).unwrap().water = 0;
+        let start = state.units[&unit_id].hex.unwrap();
+        let dest = start
+            .neighbors()
+            .into_iter()
+            .find(|&h| {
+                state.map.in_bounds(h)
+                    && state.map.get(h).map(|m| m.terrain.passable()).unwrap_or(false)
+                    && !state.occupied_by_any(h)
+            })
+            .expect("an empty passable neighbor exists");
+        let r = state.apply(
+            side,
+            &Action::Move {
+                unit: unit_id,
+                path: vec![start, dest],
+            },
+        );
+        assert!(
+            matches!(&r, Err(e) if e.code == ActionErrorKind::OutOfWater),
+            "waterless move should be rejected, got {r:?}"
+        );
     }
 }

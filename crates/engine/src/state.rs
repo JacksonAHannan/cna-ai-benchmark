@@ -241,7 +241,10 @@ impl GameState {
         for id in ids {
             let (hex, demand, name) = {
                 let unit = self.units.get(&id).unwrap();
-                (unit.hex.unwrap(), unit.supply_draw(), unit.name.clone())
+                let fuel_need = unit.fuel_capacity.saturating_sub(unit.fuel) as u32;
+                let ammo_need = unit.ammo_capacity.saturating_sub(unit.ammo) as u32;
+                let demand = unit.stores_draw() + unit.water_draw() + fuel_need + ammo_need;
+                (unit.hex.unwrap(), demand, unit.name.clone())
             };
             let traced = depots.iter().any(|&d| self.traces_to(hex, d));
             let in_supply = traced && demand <= remaining;
@@ -288,12 +291,17 @@ impl GameState {
             unit.missions = unit.missions_allowance;
             unit.has_attacked = false;
 
-            // Refuel/rearm in-supply units from the supply line.
+            // Refuel/rearm/resupply in-supply units from the supply line.
             if unit.supply == SupplyStatus::InSupply {
                 unit.ammo = unit.ammo_capacity;
+                unit.water = unit.water_capacity;
                 if unit.fuel_capacity > 0 {
                     unit.fuel = unit.fuel_capacity;
                 }
+            } else {
+                // Out of supply: water depletes (Italian pasta draws it faster).
+                let w = unit.water_draw() as u8;
+                unit.water = unit.water.saturating_sub(w);
             }
 
             // CNA signature: fuel evaporates each Game-Turn (research-corrected

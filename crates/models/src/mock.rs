@@ -91,6 +91,9 @@ fn decide(obs: &Observation, failed: &HashSet<(UnitId, Hex)>) -> Action {
         if u.has_attacked || u.movement == 0 {
             continue;
         }
+        if u.ammo == 0 || u.water == 0 {
+            continue;
+        }
         let range = match u.kind {
             UnitType::Artillery => 2,
             _ => 1,
@@ -178,6 +181,9 @@ fn best_move(
             continue;
         }
         if u.kind.is_mobile() && u.fuel == 0 {
+            continue;
+        }
+        if u.water == 0 {
             continue;
         }
         let cur = u.hex?;

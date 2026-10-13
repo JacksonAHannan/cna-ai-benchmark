@@ -86,8 +86,9 @@ Action variants (hexes are {"q":int,"r":int} axial coordinates):
 
 Key rules:
 - Out-of-supply units move at half rate and lose strength each turn.
-- Mobile units burn fuel to move; fuel evaporates each turn (3%, 7% for British).
+- Mobile units burn fuel to move; fuel evaporates each turn (6%, 9% for Commonwealth).
 - Italian units draw extra water for pasta.
+- Waterless units cannot move or attack; ammo-less units cannot attack.
 - You may only move/attack units you can see (fog of war); your own units are always visible.
 - A unit can attack once per turn; movement and attacks consume MP.
 
