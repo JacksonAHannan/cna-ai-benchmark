@@ -61,12 +61,26 @@ pub enum Terrain {
 }
 
 impl Terrain {
-    pub fn move_cost(self) -> u8 {
+    /// Movement cost in CP (research values §8.37; motorized costs more off-road).
+    pub fn move_cost(self, motorized: bool) -> u8 {
         match self {
             Terrain::Sea => u8::MAX,
-            Terrain::Road | Terrain::Coast | Terrain::Village => 1,
-            Terrain::Desert | Terrain::Oasis => 2,
-            Terrain::Escarpment => 3,
+            Terrain::Road | Terrain::Coast => 1,
+            Terrain::Village => 2,
+            Terrain::Desert | Terrain::Oasis => {
+                if motorized {
+                    4
+                } else {
+                    3
+                }
+            }
+            Terrain::Escarpment => {
+                if motorized {
+                    10
+                } else {
+                    6
+                }
+            }
         }
     }
 

@@ -122,8 +122,8 @@ impl GameState {
             ));
         }
 
-        let mut mp = 0u32;
-        let mut fuel = 0u32;
+        let motorized = unit.kind.is_mobile();
+        let mut cp = 0u32;
         let mut prev = start;
         for &h in &path[1..] {
             if prev.distance(h) != 1 {
@@ -148,20 +148,20 @@ impl GameState {
                     "hex is occupied",
                 ));
             }
-            mp += mh.terrain.move_cost() as u32;
-            fuel += 1;
+            cp += mh.terrain.move_cost(motorized) as u32;
             prev = h;
         }
-        if unit.movement < mp as u8 {
+        if unit.movement < cp as u8 {
             return Err(ActionError::new(
                 ActionErrorKind::NotEnoughMovement,
-                format!("needs {mp} MP, has {}", unit.movement),
+                format!("needs {cp} CP, has {}", unit.movement),
             ));
         }
-        if unit.kind.is_mobile() && unit.fuel < fuel as u8 {
+        let fuel_need = (cp + 4) / 5;
+        if unit.kind.is_mobile() && (unit.fuel as u32) < fuel_need {
             return Err(ActionError::new(
                 ActionErrorKind::OutOfFuel,
-                format!("needs {fuel} fuel, has {}", unit.fuel),
+                format!("needs {fuel_need} fuel, has {}", unit.fuel),
             ));
         }
         if unit.water == 0 {
@@ -174,19 +174,23 @@ impl GameState {
     }
 
     fn resolve_move(&mut self, unit_id: UnitId, path: &[Hex]) {
-        let mut mp = 0u32;
-        let mut fuel = 0u32;
+        let motorized = self.units[&unit_id].kind.is_mobile();
+        let mut cp = 0u32;
         for w in path.windows(2) {
-            mp += self.map.get(w[1]).map(|m| m.terrain.move_cost() as u32).unwrap_or(0);
-            fuel += 1;
+            cp += self
+                .map
+                .get(w[1])
+                .map(|m| m.terrain.move_cost(motorized) as u32)
+                .unwrap_or(0);
         }
         let from = path[0];
         let to = *path.last().unwrap();
+        let fuel_spent = ((cp + 4) / 5) as u8;
 
         let unit = self.units.get_mut(&unit_id).unwrap();
-        unit.movement = unit.movement.saturating_sub(mp as u8);
+        unit.movement = unit.movement.saturating_sub(cp as u8);
         if unit.kind.is_mobile() {
-            unit.fuel = unit.fuel.saturating_sub(fuel as u8);
+            unit.fuel = unit.fuel.saturating_sub(fuel_spent);
         }
         unit.hex = Some(to);
 
@@ -195,8 +199,8 @@ impl GameState {
             unit: unit_id,
             from,
             to,
-            mp_spent: mp as u8,
-            fuel_spent: fuel as u8,
+            mp_spent: cp as u8,
+            fuel_spent,
         });
     }
 
@@ -228,10 +232,10 @@ impl GameState {
                 "unit already attacked this turn",
             ));
         }
-        if a.movement < 1 {
+        if a.movement < 5 {
             return Err(ActionError::new(
                 ActionErrorKind::NotEnoughMovement,
-                "unit has no movement left to attack",
+                "attack requires 5 CP",
             ));
         }
         if a.ammo == 0 {
@@ -372,7 +376,7 @@ impl GameState {
         // Attacker expends its attack.
         let au = self.units.get_mut(&attacker).unwrap();
         au.has_attacked = true;
-        au.movement = au.movement.saturating_sub(1);
+        au.movement = au.movement.saturating_sub(5);
         au.ammo = au.ammo.saturating_sub(1);
 
         self.log.push(Event::Attack {

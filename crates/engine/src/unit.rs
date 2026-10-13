@@ -31,12 +31,13 @@ impl UnitType {
         }
     }
 
-    /// Movement allowance in MP per turn.
+    /// Movement allowance in CP per turn (research §6; tanks ~25, infantry ~10).
     pub fn movement_allowance(self) -> u8 {
         match self {
-            UnitType::Armor | UnitType::Motorized => 6,
-            UnitType::Infantry => 3,
-            UnitType::Artillery => 2,
+            UnitType::Armor => 25,
+            UnitType::Motorized => 20,
+            UnitType::Infantry => 10,
+            UnitType::Artillery => 20,
             UnitType::Air => 12,
         }
     }

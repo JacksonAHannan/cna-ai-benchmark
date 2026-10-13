@@ -88,7 +88,7 @@ fn decide(obs: &Observation, failed: &HashSet<(UnitId, Hex)>) -> Action {
         if u.kind == UnitType::Air {
             continue; // air units sortie via recon/support, not direct attack
         }
-        if u.has_attacked || u.movement == 0 {
+        if u.has_attacked || u.movement < 5 {
             continue;
         }
         if u.ammo == 0 || u.water == 0 {
@@ -197,7 +197,11 @@ fn best_move(
             if !passable(obs, n) || occupied(obs, n) {
                 continue;
             }
-            let cost = obs.map.get(n).map(|m| m.terrain.move_cost()).unwrap_or(u8::MAX);
+            let cost = obs
+                .map
+                .get(n)
+                .map(|m| m.terrain.move_cost(u.kind.is_mobile()))
+                .unwrap_or(u8::MAX);
             if cost == u8::MAX || u.movement < cost {
                 continue;
             }
