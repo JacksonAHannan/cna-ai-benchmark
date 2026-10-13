@@ -181,6 +181,160 @@ pub fn full_map() -> Map {
     Map::from_axial_hexes(cells)
 }
 
+/// The Italian Campaign / Operation Compass setup on the full transcribed map
+/// (§60.23, GT1/OS1). Ports, objectives, and formations are placed at their
+/// printed `ccrr` coordinates (docs/data/compass-setup.md, map-features.md).
+/// Unit strengths/morale are placeholders pending full OB wiring.
+pub fn compass_scenario() -> Scenario {
+    let text = include_str!("../../../docs/data/map-terrain.md");
+    let sheets: [(char, i16); 5] = [('A', 0), ('B', 33), ('C', 66), ('D', 99), ('E', 132)];
+    let mut cells = Vec::new();
+    for (name, t) in sheets {
+        let marker = format!("## Sheet {name}");
+        let Some(sec) = text.split(&marker).nth(1) else {
+            continue;
+        };
+        let grid = sec.split("\n## ").next().unwrap_or(sec);
+        for line in grid.lines() {
+            let mut parts = line.split_whitespace();
+            let Ok(rr) = parts.next().unwrap_or("").parse::<i16>() else {
+                continue;
+            };
+            let Some(row) = parts.next() else { continue };
+            for (i, ch) in row.chars().enumerate() {
+                let cc = i as i16 + 1;
+                if let Some(terrain) = Terrain::from_transcription_code(ch) {
+                    let q = cc;
+                    let r = rr + t - (cc + 1) / 2;
+                    cells.push((Hex::new(q, r), terrain));
+                }
+            }
+        }
+    }
+    let min_row = cells.iter().map(|(h, _)| h.r).min().unwrap_or(0);
+    let min_col = cells.iter().map(|(h, _)| h.to_offset().1).min().unwrap_or(0);
+    let mut map = Map::from_axial_hexes(cells);
+
+    // Printed ccrr -> normalized offset (row, col).
+    let ccrr = |sheet: char, cc: i16, rr: i16| -> (i16, i16) {
+        let t = match sheet {
+            'A' => 0,
+            'B' => 33,
+            'C' => 66,
+            'D' => 99,
+            'E' => 132,
+            _ => 0,
+        };
+        let q = cc;
+        let r = rr + t - (cc + 1) / 2;
+        let (row, col) = Hex::new(q, r).to_offset();
+        (row - min_row, col - min_col)
+    };
+
+    let allied = Side::Allied;
+    let axis = Side::Axis;
+    let br = Nationality::British;
+    let cw = Nationality::Commonwealth;
+    let ita = Nationality::Italian;
+
+    // Ports (depots); capacity = port tonnage ÷ 500 (reduced scale).
+    let mut place = |sheet: char, cc: i16, rr: i16, side: Side, name: &str, cap: u32| {
+        let (r, c) = ccrr(sheet, cc, rr);
+        map.add_depot(r, c, side, name, cap);
+    };
+    place('A', 48, 27, axis, "Benghazi", 5);
+    place('B', 59, 25, axis, "Derna", 1);
+    place('C', 48, 07, axis, "Tobruk", 3);
+    place('C', 43, 21, axis, "Bardia", 1);
+    place('C', 40, 21, axis, "Sollum", 1);
+    place('D', 37, 14, allied, "Mersa Matruh", 1);
+    place('E', 36, 13, allied, "Alexandria", 30);
+
+    // Victory objectives.
+    for (sheet, cc, rr, name) in [
+        ('C', 48, 07, "Tobruk"),
+        ('C', 43, 21, "Bardia"),
+        ('C', 39, 22, "Halfaya Pass"),
+        ('C', 41, 31, "Sidi Barrani"),
+        ('C', 36, 18, "Sidi Omar"),
+        ('C', 30, 19, "Fort Maddalena"),
+        ('C', 01, 27, "Siwa"),
+        ('A', 20, 21, "Mersa Brega"),
+        ('A', 18, 16, "El Agheila"),
+    ] {
+        let (r, c) = ccrr(sheet, cc, rr);
+        map.add_objective(r, c, name);
+    }
+
+    // Starting formations (docs/data/compass-setup.md).
+    let div = Organization::Division;
+    let bde = Organization::Brigade;
+    let units = vec![
+        // Commonwealth (Western Desert Force).
+        UnitSpec::new("7th Armoured Division", allied, br, UnitType::Armor, 8, div, 1, 0, 0),
+        UnitSpec::new("4th Indian Division", allied, cw, UnitType::Infantry, 8, div, 1, 0, 0),
+        UnitSpec::new("6th Australian Division", allied, cw, UnitType::Infantry, 6, div, 2, 0, 0),
+        UnitSpec::new("2nd NZ Division", allied, cw, UnitType::Infantry, 6, div, 1, 0, 0),
+        UnitSpec::new("WDF 7th Medium Arty", allied, br, UnitType::Artillery, 3, bde, 0, 0, 0),
+        // Italian Tenth Army (west).
+        UnitSpec::new("Maletti Division", axis, ita, UnitType::Motorized, 5, div, 0, 0, 0),
+        UnitSpec::new("1st Libyan Division", axis, ita, UnitType::Infantry, 5, div, -1, 0, 0),
+        UnitSpec::new("2nd Libyan Division", axis, ita, UnitType::Infantry, 5, div, -1, 0, 0),
+        UnitSpec::new("1st CCNN Division", axis, ita, UnitType::Infantry, 4, div, 0, 0, 0),
+        UnitSpec::new("63rd Cirene Division", axis, ita, UnitType::Infantry, 4, div, -1, 0, 0),
+        UnitSpec::new("62nd Marmarica Division", axis, ita, UnitType::Infantry, 4, div, -1, 0, 0),
+        UnitSpec::new("64th Catanzaro Division", axis, ita, UnitType::Infantry, 4, div, -1, 0, 0),
+        UnitSpec::new("4th CCNN Division", axis, ita, UnitType::Infantry, 4, div, 0, 0, 0),
+        // Garrisons.
+        UnitSpec::new("Benghazi Garrison", axis, ita, UnitType::Infantry, 3, bde, -1, 0, 0),
+        UnitSpec::new("Tobruk Garrison", axis, ita, UnitType::Infantry, 3, bde, 0, 0, 0),
+        UnitSpec::new("Bardia Garrison", axis, ita, UnitType::Infantry, 3, bde, 0, 0, 0),
+        UnitSpec::new("Derna Garrison", axis, ita, UnitType::Infantry, 2, bde, -1, 0, 0),
+        UnitSpec::new("Mersa Matruh Garrison", allied, cw, UnitType::Infantry, 3, bde, 0, 0, 0),
+    ];
+
+    // Place each formation at its printed coordinate.
+    let coords: [(&str, char, i16, i16); 18] = [
+        ("7th Armoured Division", 'D', 36, 12),
+        ("4th Indian Division", 'D', 36, 15),
+        ("6th Australian Division", 'E', 14, 30),
+        ("2nd NZ Division", 'E', 36, 13),
+        ("WDF 7th Medium Arty", 'C', 39, 22),
+        ("Maletti Division", 'C', 36, 17),
+        ("1st Libyan Division", 'C', 40, 20),
+        ("2nd Libyan Division", 'C', 39, 20),
+        ("1st CCNN Division", 'C', 42, 18),
+        ("63rd Cirene Division", 'C', 41, 20),
+        ("62nd Marmarica Division", 'C', 39, 18),
+        ("64th Catanzaro Division", 'C', 47, 07),
+        ("4th CCNN Division", 'C', 45, 07),
+        ("Benghazi Garrison", 'A', 48, 27),
+        ("Tobruk Garrison", 'C', 48, 07),
+        ("Bardia Garrison", 'C', 43, 21),
+        ("Derna Garrison", 'B', 59, 25),
+        ("Mersa Matruh Garrison", 'D', 37, 14),
+    ];
+    let mut units: Vec<UnitSpec> = units;
+    for (name, sheet, cc, rr) in coords {
+        let (r, c) = ccrr(sheet, cc, rr);
+        if let Some(spec) = units.iter_mut().find(|u| u.name == name) {
+            spec.row = r;
+            spec.col = c;
+        }
+    }
+
+    Scenario {
+        id: "compass-full".to_string(),
+        name: "Italian Campaign (full map)".to_string(),
+        turn_horizon: 20,
+        start_year: 1940,
+        start_month: 9,
+        map,
+        units,
+        reinforcements: vec![],
+    }
+}
+
 impl Scenario {
     /// Build the initial unit roster (ids 1..=N) without running any phases —
     /// used by the replay spectator to reconstruct unit positions from the log.

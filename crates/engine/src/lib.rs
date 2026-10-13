@@ -23,7 +23,7 @@ pub use action::{Action, ActionError, ActionErrorKind};
 pub use events::{Event, EventLog};
 pub use fog::{Observation, Role, RoleView};
 pub use map::{Hex, Map, MapHex, Site, Terrain};
-pub use scenario::{default_scenario, Scenario};
+pub use scenario::{compass_scenario, default_scenario, full_map, Scenario};
 pub use side::{Nationality, Side};
 pub use state::{GameState, Phase};
 pub use unit::{SupplyStatus, Unit, UnitId, UnitType};

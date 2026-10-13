@@ -827,4 +827,16 @@ mod tests {
             "waterless move should be rejected, got {r:?}"
         );
     }
+
+    #[test]
+    fn compass_scenario_builds() {
+        let state = GameState::new(crate::scenario::compass_scenario(), 7);
+        assert!(state.map.depots.len() >= 7, "ports placed as depots");
+        assert!(state.map.objectives.len() >= 9, "objectives placed");
+        assert!(state.units.len() >= 18, "formations placed");
+        assert!(
+            state.units.values().all(|u| !u.eliminated()),
+            "all units start on-map"
+        );
+    }
 }

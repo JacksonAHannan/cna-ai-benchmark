@@ -1,7 +1,7 @@
 //! Headless benchmark runner: plays a round-robin of games between agents,
 //! updates Elo, and persists each game's event log for later spectating/replay.
 
-use cna_engine::{default_scenario, Event, GameState, Side};
+use cna_engine::{compass_scenario, default_scenario, Event, GameState, Side};
 use cna_models::{build_agent, run_streaming, run_streaming_team, Agent, AgentConfig};
 use serde::Serialize;
 use std::path::PathBuf;
@@ -36,8 +36,9 @@ async fn run_game(
     axis: Arc<dyn Agent>,
     seed: u64,
     turns: Option<u32>,
+    compass: bool,
 ) -> GameResult {
-    let mut scenario = default_scenario();
+    let mut scenario = if compass { compass_scenario() } else { default_scenario() };
     if let Some(t) = turns {
         scenario.turn_horizon = t;
     }
@@ -92,12 +93,13 @@ fn outcome_score(winner: Option<Side>) -> (f64, f64) {
     }
 }
 
-fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>, bool) {
+fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>, bool, bool) {
     let mut games = DEFAULT_GAMES_PER_PAIR;
     let mut seed = DEFAULT_SEED;
     let mut config: Option<PathBuf> = None;
     let mut turns: Option<u32> = None;
     let mut teams = false;
+    let mut compass = false;
 
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
@@ -121,10 +123,13 @@ fn parse_args() -> (usize, u64, Option<PathBuf>, Option<u32>, bool) {
             "--teams" => {
                 teams = true;
             }
+            "--compass" => {
+                compass = true;
+            }
             _ => {}
         }
     }
-    (games, seed, config, turns, teams)
+    (games, seed, config, turns, teams, compass)
 }
 
 fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
@@ -144,7 +149,7 @@ fn load_agents(config: Option<PathBuf>) -> Vec<Arc<dyn Agent>> {
 
 #[tokio::main]
 async fn main() {
-    let (games_per_pair, seed_base, config, turns, teams) = parse_args();
+    let (games_per_pair, seed_base, config, turns, teams, compass) = parse_args();
 
     if teams {
         // 5v5 smoke run: five mock roles per side.
@@ -190,7 +195,7 @@ async fn main() {
             let an = players[ai].name().to_string();
             let bn = players[bi].name().to_string();
             tokio::spawn(async move {
-                let r = run_game(allied, axis, s, turns).await;
+                let r = run_game(allied, axis, s, turns, compass).await;
                 (s, an, bn, r)
             })
         })
