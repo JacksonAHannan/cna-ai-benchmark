@@ -56,6 +56,9 @@ pub trait Agent: Send + Sync {
         obs: &Observation,
         feedback: Option<&ActionError>,
     ) -> Result<Action, ModelError>;
+
+    /// Free-form text generation — used for post-game strategy narratives.
+    async fn chat(&self, system: &str, user: &str) -> Result<String, ModelError>;
 }
 
 pub fn build_agent(config: &AgentConfig) -> Box<dyn Agent> {

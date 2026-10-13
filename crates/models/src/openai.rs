@@ -83,4 +83,33 @@ impl Agent for OpenAiAgent {
         let action: Action = crate::adapter::parse_action(content)?;
         Ok(action)
     }
+
+    async fn chat(&self, system: &str, user: &str) -> Result<String, ModelError> {
+        let body = json!({
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ]
+        });
+        let resp = self
+            .client
+            .post(format!("{}/chat/completions", self.base_url.trim_end_matches('/')))
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ModelError::Http(e.to_string()))?;
+        let status = resp.status();
+        let text = resp.text().await.map_err(|e| ModelError::Http(e.to_string()))?;
+        if !status.is_success() {
+            return Err(ModelError::Api(format!("{status}: {text}")));
+        }
+        let v: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| ModelError::Parse(e.to_string()))?;
+        let content = v["choices"][0]["message"]["content"]
+            .as_str()
+            .ok_or_else(|| ModelError::Parse("no assistant content".to_string()))?;
+        Ok(content.to_string())
+    }
 }

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DepotView, Event, GameMap, Hex, Side, Unit, WsMessage } from './types';
+import type { AnalysisResponse, DepotView, Event, GameMap, Hex, Side, Unit, WsMessage } from './types';
 import HexMap from './components/HexMap';
 import EventFeed from './components/EventFeed';
+import MatchReport from './components/MatchReport';
 
 interface GameInfo {
   id: number;
@@ -34,6 +35,7 @@ export default function App() {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [replays, setReplays] = useState<ReplayInfo[]>([]);
   const [spec, setSpec] = useState<Spectate | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [mode, setMode] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -116,18 +118,24 @@ export default function App() {
     const r = await fetch('/api/games', { method: 'POST' });
     const { id } = await r.json();
     setMode(`live #${id}`);
+    setAnalysis(null);
     connect(`ws://${location.host}/ws/spectate/${id}`);
     refresh();
   };
 
   const spectate = (id: number) => {
     setMode(`live #${id}`);
+    setAnalysis(null);
     connect(`ws://${location.host}/ws/spectate/${id}`);
   };
 
   const replay = (file: string) => {
     setMode(`replay ${file}`);
     connect(`ws://${location.host}/ws/replay/${file}`);
+    fetch(`/api/analyze/${file}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((a) => setAnalysis(a))
+      .catch(() => setAnalysis(null));
   };
 
   return (
@@ -199,6 +207,7 @@ export default function App() {
             <div className="empty">Start or spectate a game to watch it unfold.</div>
           )}
         </div>
+        {analysis && <MatchReport analysis={analysis} />}
         <EventFeed events={spec?.events ?? []} />
       </main>
     </div>

@@ -12,7 +12,7 @@ use axum::{
     Json, Router,
 };
 use cna_engine::{
-    default_scenario, fog::DepotView, map::Site, GameState, Hex, Map, Side, Unit,
+    default_scenario, fog::DepotView, map::Site, Event, GameState, Hex, Map, Side, Unit,
 };
 use cna_models::{build_agent, run_streaming, Agent, AgentConfig};
 use parking_lot::Mutex;
@@ -83,6 +83,7 @@ struct GameEntry {
 struct AppState {
     games: Arc<Mutex<HashMap<u64, Arc<GameEntry>>>>,
     next_id: Arc<AtomicU64>,
+    analyst: Arc<dyn Agent>,
 }
 
 fn depots_of(map: &Map) -> Vec<DepotView> {
@@ -154,10 +155,56 @@ fn load_live_agents() -> Vec<AgentConfig> {
     ]
 }
 
+fn build_analyst() -> Arc<dyn Agent> {
+    let configs = load_live_agents();
+    Arc::from(build_agent(&configs[0]))
+}
+
 // ---- handlers ----
 
 async fn health() -> Json<Value> {
     Json(json!({ "ok": true }))
+}
+
+async fn analyze(Path(file): Path<String>, State(app): State<AppState>) -> Response {
+    let path = format!("games/{file}");
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "replay not found" })),
+        )
+            .into_response();
+    };
+    let Ok(record): Result<Value, _> = serde_json::from_str(&text) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "invalid replay" })),
+        )
+            .into_response();
+    };
+
+    let events: Vec<Event> = record["events"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|e| serde_json::from_value(e.clone()).ok())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let summary = cna_analyzer::summarize(&events);
+    let narrative = match cna_analyzer::narrate(&summary, app.analyst.as_ref()).await {
+        Ok(n) => n,
+        Err(e) => format!("(narrative unavailable: {e})"),
+    };
+
+    Json(json!({
+        "allied": record["allied"],
+        "axis": record["axis"],
+        "summary": summary,
+        "narrative": narrative,
+    }))
+    .into_response()
 }
 
 async fn start_game(State(app): State<AppState>) -> Json<Value> {
@@ -365,6 +412,7 @@ async fn main() {
     let app_state = AppState {
         games: Arc::new(Mutex::new(HashMap::new())),
         next_id: Arc::new(AtomicU64::new(1)),
+        analyst: build_analyst(),
     };
 
     let app = Router::new()
@@ -372,6 +420,7 @@ async fn main() {
         .route("/api/health", get(health))
         .route("/api/games", get(list_games).post(start_game))
         .route("/api/replays", get(list_replays))
+        .route("/api/analyze/:file", get(analyze))
         .route("/ws/spectate/:id", get(spectate_ws))
         .route("/ws/replay/:file", get(replay_ws))
         .nest_service("/assets", ServeDir::new("web/dist/assets"))

@@ -156,6 +156,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cna-analyzer"
+version = "0.1.0"
+dependencies = [
+ "cna-engine",
+ "cna-models",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "cna-bench"
 version = "0.1.0"
 dependencies = [
@@ -194,6 +205,7 @@ name = "cna-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "cna-analyzer",
  "cna-engine",
  "cna-models",
  "parking_lot",

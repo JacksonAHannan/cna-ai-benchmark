@@ -68,6 +68,10 @@ impl Agent for MockAgent {
         }
         Ok(action)
     }
+
+    async fn chat(&self, _system: &str, _user: &str) -> Result<String, ModelError> {
+        Ok("(no narrative — mock agent has no language model)".to_string())
+    }
 }
 
 fn decide(obs: &Observation, failed: &HashSet<(UnitId, Hex)>) -> Action {
