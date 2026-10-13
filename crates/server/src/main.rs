@@ -359,7 +359,7 @@ async fn serve_replay(mut socket: WebSocket, file: String) {
         active: Side::Allied,
         winner: None,
         game_over: false,
-        units: Vec::new(),
+        units: scenario.initial_units(),
     };
     if socket.send(to_text(&snap)).await.is_err() {
         return;

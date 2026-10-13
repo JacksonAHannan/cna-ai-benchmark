@@ -118,3 +118,26 @@ pub fn default_scenario() -> Scenario {
         reinforcements,
     }
 }
+
+impl Scenario {
+    /// Build the initial unit roster (ids 1..=N) without running any phases —
+    /// used by the replay spectator to reconstruct unit positions from the log.
+    pub fn initial_units(&self) -> Vec<crate::unit::Unit> {
+        self.units
+            .iter()
+            .enumerate()
+            .map(|(i, spec)| {
+                let hex = crate::map::Hex::from_offset(spec.row, spec.col);
+                crate::unit::Unit::new(
+                    (i + 1) as crate::unit::UnitId,
+                    &spec.name,
+                    spec.side,
+                    spec.nationality,
+                    spec.kind,
+                    spec.strength,
+                    hex,
+                )
+            })
+            .collect()
+    }
+}

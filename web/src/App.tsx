@@ -31,6 +31,46 @@ interface Spectate {
   done: { winner: Side | null; turns: number; illegal_allied: number; illegal_axis: number } | null;
 }
 
+function applyEventsToUnits(units: Unit[], events: Event[]): Unit[] {
+  let next = units;
+  for (const ev of events) {
+    if ((ev.type === 'move' || ev.type === 'retreat') && ev.unit != null && ev.to) {
+      const unitId = ev.unit;
+      const to = ev.to;
+      next = next.map((u) => (u.id === unitId && u.hex ? { ...u, hex: to } : u));
+    } else if (ev.type === 'elimination' && ev.unit != null) {
+      const unitId = ev.unit;
+      next = next.map((u) => (u.id === unitId ? { ...u, hex: null } : u));
+    } else if (ev.type === 'reinforcement' && ev.unit != null && ev.hex) {
+      const unitId = ev.unit;
+      if (!next.some((u) => u.id === unitId)) {
+        next = [
+          ...next,
+          {
+            id: unitId,
+            name: ev.name ?? '?',
+            side: ev.side ?? 'Allied',
+            nationality: ev.side === 'Axis' ? 'German' : 'British',
+            kind: ev.kind ?? 'Infantry',
+            strength: ev.strength ?? 1,
+            max_strength: ev.strength ?? 1,
+            movement: 0,
+            movement_allowance: 0,
+            fuel: 0,
+            fuel_capacity: 0,
+            supply: 'InSupply',
+            missions: 0,
+            missions_allowance: 0,
+            hex: ev.hex,
+            has_attacked: false,
+          },
+        ];
+      }
+    }
+  }
+  return next;
+}
+
 export default function App() {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [replays, setReplays] = useState<ReplayInfo[]>([]);
@@ -80,7 +120,15 @@ export default function App() {
           done: null,
         });
       } else if (msg.type === 'events') {
-        setSpec((s) => (s ? { ...s, events: [...s.events, ...msg.events] } : s));
+        setSpec((s) =>
+          s
+            ? {
+                ...s,
+                events: [...s.events, ...msg.events],
+                units: applyEventsToUnits(s.units, msg.events),
+              }
+            : s,
+        );
       } else if (msg.type === 'state') {
         setSpec((s) =>
           s

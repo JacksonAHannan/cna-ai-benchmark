@@ -4,7 +4,7 @@
 use crate::action::Action;
 use crate::map::Hex;
 use crate::side::Side;
-use crate::unit::UnitId;
+use crate::unit::{UnitId, UnitType};
 use crate::victory::{Outcome, VictoryReason};
 use serde::{Deserialize, Serialize};
 
@@ -92,6 +92,8 @@ pub enum Event {
         unit: UnitId,
         name: String,
         side: Side,
+        kind: UnitType,
+        strength: u8,
         hex: Hex,
     },
     IllegalAction {

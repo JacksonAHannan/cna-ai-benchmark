@@ -155,6 +155,8 @@ impl GameState {
                 unit: id,
                 name: unit.name.clone(),
                 side: unit.side,
+                kind: unit.kind,
+                strength: unit.strength,
                 hex,
             });
             self.units.insert(id, unit);

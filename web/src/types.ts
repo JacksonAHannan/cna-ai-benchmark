@@ -80,6 +80,8 @@ export interface Event {
   note?: string;
   subject?: string;
   hex?: Hex;
+  kind?: string;
+  strength?: number;
   turn_horizon?: number;
   odds_numerator?: number;
   odds_denominator?: number;
