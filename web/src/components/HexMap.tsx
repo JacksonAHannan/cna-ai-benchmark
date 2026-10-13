@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DepotView, GameMap, Hex, MapHex, Unit } from '../types';
 import { hexPath, hexToPixel, mapBounds } from '../layout';
 
@@ -9,6 +9,10 @@ const TERRAIN_COLOR: Record<string, string> = {
   Rough: '#9a7a4e',
   Mountain: '#6a4a30',
   SaltMarsh: '#7a9a8a',
+  RockGravel: '#9a9282',
+  HeavyVegetation: '#3f6a34',
+  Delta: '#2f5f5a',
+  Swamp: '#5a6a3a',
   Escarpment: 'var(--escarp)',
   Road: 'var(--road)',
   Track: '#a08a58',
@@ -25,19 +29,30 @@ interface Props {
   objectives: Hex[];
   selectedId: number | null;
   onSelect: (unit: Unit | null) => void;
+  focusHex: { q: number; r: number } | null;
 }
 
-export default function HexMap({ map, units, depots, objectives, selectedId, onSelect }: Props) {
+export default function HexMap({ map, units, depots, objectives, selectedId, onSelect, focusHex }: Props) {
   const size = 20;
   const pad = 26;
   const full = mapBounds(map.hexes.map((h) => h.hex), size);
   const totalW = full.width + pad * 2;
   const totalH = full.height + pad * 2;
+  const MINIMAP_W = 220;
+  const minimapH = (MINIMAP_W * totalH) / totalW;
+  const minimapScale = MINIMAP_W / totalW;
 
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState({ x: full.minX + full.width / 2, y: full.minY + full.height / 2 });
+  const [follow, setFollow] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
+
+  useEffect(() => {
+    if (!follow || !focusHex) return;
+    const { x, y } = hexToPixel(focusHex.q, focusHex.r, size);
+    setCenter({ x, y });
+  }, [focusHex, follow]);
 
   const winW = totalW / zoom;
   const winH = totalH / zoom;
@@ -140,17 +155,77 @@ export default function HexMap({ map, units, depots, objectives, selectedId, onS
                 }}
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                <circle cx={0} cy={0} r={11} fill="var(--panel-2)" stroke={color} strokeWidth={selected ? 3 : 2} />
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={11}
+                  fill="var(--panel-2)"
+                  stroke={u.supply === 'OutOfSupply' ? 'var(--error)' : color}
+                  strokeWidth={selected ? 3 : 2}
+                />
                 <text x={0} y={4} textAnchor="middle" fontSize={11} fontWeight="bold" fill="var(--text)" fontFamily="monospace">
                   {u.strength}
                 </text>
+                {(u.water === 0 || (u.fuel === 0 && u.fuel_capacity > 0) || u.contact) && (
+                  <g>
+                    {u.water === 0 && <circle cx={-4} cy={-8} r={2.5} fill="#4a8ad0" />}
+                    {u.fuel === 0 && u.fuel_capacity > 0 && <circle cx={4} cy={-8} r={2.5} fill="var(--warning)" />}
+                    {u.contact && <circle cx={0} cy={-8} r={2.5} fill="var(--error)" />}
+                  </g>
+                )}
                 <title>{`${u.name} (${u.side} ${u.nationality}, ${u.kind}, ${u.supply})`}</title>
               </g>
             );
           })}
       </svg>
 
+      <svg
+        className="minimap"
+        width={MINIMAP_W}
+        height={minimapH}
+        viewBox={`0 0 ${MINIMAP_W} ${minimapH}`}
+        style={{ width: MINIMAP_W, height: minimapH }}
+        onClick={(e) => {
+          const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+          setCenter({
+            x: ((e.clientX - rect.left) / rect.width) * totalW + full.minX,
+            y: ((e.clientY - rect.top) / rect.height) * totalH + full.minY,
+          });
+          setFollow(false);
+        }}
+      >
+        <rect x={0} y={0} width={MINIMAP_W} height={minimapH} fill="var(--sea)" />
+        {map.hexes.map((h) => {
+          const p = hexToPixel(h.hex.q, h.hex.r, size);
+          return (
+            <circle
+              key={`mm-${h.hex.q},${h.hex.r}`}
+              cx={(p.x - full.minX) * minimapScale}
+              cy={(p.y - full.minY) * minimapScale}
+              r={1.1}
+              fill={TERRAIN_COLOR[h.terrain] ?? 'var(--sand)'}
+            />
+          );
+        })}
+        <rect
+          x={(center.x - winW / 2 - full.minX) * minimapScale}
+          y={(center.y - winH / 2 - full.minY) * minimapScale}
+          width={winW * minimapScale}
+          height={winH * minimapScale}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={1.5}
+        />
+      </svg>
+
       <div className="map-controls">
+        <button
+          onClick={() => setFollow((f) => !f)}
+          style={follow ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : {}}
+          title={follow ? 'Following action (click to stop)' : 'Follow action'}
+        >
+          ◎
+        </button>
         <button onClick={() => applyZoom(1.35)} title="Zoom in">＋</button>
         <button onClick={() => applyZoom(1 / 1.35)} title="Zoom out">－</button>
         <button

@@ -6,6 +6,10 @@ export type Terrain =
   | 'Rough'
   | 'Mountain'
   | 'SaltMarsh'
+  | 'RockGravel'
+  | 'HeavyVegetation'
+  | 'Delta'
+  | 'Swamp'
   | 'Escarpment'
   | 'Road'
   | 'Track'
@@ -66,6 +70,8 @@ export interface Unit {
   water_capacity: number;
   hex: Hex | null;
   has_attacked: boolean;
+  contact?: boolean;
+  morale?: number;
 }
 
 export interface Outcome {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisResponse, DepotView, Event, GameMap, Hex, Side, Unit, WsMessage } from './types';
 import HexMap from './components/HexMap';
 import EventFeed from './components/EventFeed';
@@ -227,6 +227,27 @@ export default function App() {
       .catch(() => setAnalysis(null));
   };
 
+  const focusHex = useMemo(() => {
+    if (!spec || spec.events.length === 0) return null;
+    const ev = spec.events[spec.events.length - 1];
+    switch (ev.type) {
+      case 'move':
+      case 'retreat':
+        return ev.to ?? null;
+      case 'attack': {
+        const d = spec.units.find((u) => u.id === ev.defender);
+        return d?.hex ?? null;
+      }
+      case 'bomb':
+      case 'airRecon':
+        return ev.target ?? null;
+      case 'reinforcement':
+        return ev.hex ?? null;
+      default:
+        return null;
+    }
+  }, [spec]);
+
   return (
     <div className="app">
       <header className="header">
@@ -327,6 +348,7 @@ export default function App() {
                 objectives={spec.objectives}
                 selectedId={selectedId}
                 onSelect={(u) => setSelectedId(u ? u.id : null)}
+                focusHex={focusHex}
               />
               {(() => {
                 const sel = spec.units.find((u) => u.id === selectedId);
@@ -338,7 +360,7 @@ export default function App() {
           )}
         </div>
         {analysis && <MatchReport analysis={analysis} />}
-        <EventFeed events={spec?.events ?? []} />
+        <EventFeed events={spec?.events ?? []} units={spec?.units ?? []} map={spec?.map ?? null} />
       </main>
     </div>
   );

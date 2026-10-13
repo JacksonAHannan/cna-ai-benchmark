@@ -280,6 +280,18 @@ body {
   display: block;
 }
 
+.minimap {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--sea);
+  cursor: crosshair;
+  opacity: 0.85;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
 .statusbar {
   display: flex;
   gap: 18px;

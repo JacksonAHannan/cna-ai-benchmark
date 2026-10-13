@@ -12,7 +12,8 @@ use axum::{
     Json, Router,
 };
 use cna_engine::{
-    default_scenario, fog::DepotView, map::Site, Event, GameState, Hex, Map, Side, Unit,
+    compass_scenario, default_scenario, fog::DepotView, map::Site, Event, GameState, Hex, Map,
+    Side, Unit,
 };
 use cna_models::{build_agent, run_streaming, Agent, AgentConfig};
 use parking_lot::Mutex;
@@ -217,7 +218,7 @@ async fn start_game(State(app): State<AppState>) -> Json<Value> {
     let configs = load_live_agents();
     let allied_name = configs[0].name.clone();
     let axis_name = configs[1].name.clone();
-    let state = GameState::new(default_scenario(), seed);
+    let state = GameState::new(compass_scenario(), seed);
 
     let snap = snapshot(&state, &allied_name, &axis_name);
     let (tx, _rx) = broadcast::channel::<WsMessage>(512);

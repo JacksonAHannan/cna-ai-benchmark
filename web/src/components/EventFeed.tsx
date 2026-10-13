@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import type { Event } from '../types';
+import type { Event, GameMap, Unit } from '../types';
 
-function hexLabel(h?: { q: number; r: number }): string {
-  return h ? `${h.q},${h.r}` : '?';
+interface Resolver {
+  unitName: (id?: number) => string;
+  placeName: (h?: { q: number; r: number }) => string;
 }
 
-function describe(ev: Event): { text: string; cls: string } {
+function describe(ev: Event, r: Resolver): { text: string; cls: string } {
   switch (ev.type) {
     case 'gameStart':
       return { text: `⚑ Campaign begins (scenario ${String(ev.turn_horizon ?? '')} weeks)`, cls: 'evt-gameOver' };
@@ -20,27 +21,36 @@ function describe(ev: Event): { text: string; cls: string } {
     case 'pasta':
       return { text: `🍝 pasta: ${ev.name} — ${ev.note}`, cls: 'evt-pasta' };
     case 'move':
-      return { text: `move: unit ${ev.unit} ${hexLabel(ev.from)} → ${hexLabel(ev.to)}`, cls: 'evt-move' };
+      return { text: `move: ${r.unitName(ev.unit)} ${r.placeName(ev.from)} → ${r.placeName(ev.to)}`, cls: 'evt-move' };
     case 'attack':
-      return { text: `⚔ attack: ${ev.attacker} vs ${ev.defender} (${ev.odds_numerator}:${ev.odds_denominator}) → ${ev.result}`, cls: 'evt-attack' };
+      return {
+        text: `⚔ ${r.unitName(ev.attacker)} attacks ${r.unitName(ev.defender)} (${ev.odds_numerator}:${ev.odds_denominator}) → ${ev.result}`,
+        cls: 'evt-attack',
+      };
     case 'retreat':
-      return { text: `↩ retreat: unit ${ev.unit} ${hexLabel(ev.from)} → ${hexLabel(ev.to)}`, cls: 'evt-retreat' };
+      return { text: `↩ ${r.unitName(ev.unit)} retreats ${r.placeName(ev.from)} → ${r.placeName(ev.to)}`, cls: 'evt-retreat' };
     case 'elimination':
       return { text: `✕ ${ev.name} destroyed`, cls: 'evt-elimination' };
     case 'airRecon':
-      return { text: `✈ recon: squadron ${ev.squadron} over ${hexLabel(ev.target)} (revealed ${(ev.revealed ?? []).length})`, cls: 'evt-airRecon' };
+      return {
+        text: `✈ recon: ${r.unitName(ev.squadron)} over ${r.placeName(ev.target)} (revealed ${(ev.revealed ?? []).length})`,
+        cls: 'evt-airRecon',
+      };
     case 'bomb':
       return {
-        text: `💣 bombing: squadron ${ev.squadron} → ${hexLabel(ev.target)} (supply −${ev.supply_hit ?? 0}${ev.intercepted ? ', intercepted' : ''})`,
+        text: `💣 bombing: ${r.unitName(ev.squadron)} → ${r.placeName(ev.target)} (supply −${ev.supply_hit ?? 0}${ev.intercepted ? ', intercepted' : ''})`,
         cls: 'evt-airRecon',
       };
     case 'airCombat':
       return {
-        text: `✈ air combat: ${ev.attacker} vs ${ev.defender} (losses ${ev.attacker_losses ?? 0}/${ev.defender_losses ?? 0})`,
+        text: `✈ air combat: ${r.unitName(ev.attacker)} vs ${r.unitName(ev.defender)} (losses ${ev.attacker_losses ?? 0}/${ev.defender_losses ?? 0})`,
         cls: 'evt-attack',
       };
     case 'reinforcement':
-      return { text: `+ reinforcement: ${ev.name} arrives at ${hexLabel(ev.hex)}`, cls: 'evt-reinforcement' };
+      return {
+        text: `+ ${ev.name ?? r.unitName(ev.unit)} arrives at ${r.placeName(ev.hex)}`,
+        cls: 'evt-reinforcement',
+      };
     case 'illegalAction':
       return { text: `⚠ illegal action (${ev.side}): ${ev.error}`, cls: 'evt-illegalAction' };
     case 'turnEnd':
@@ -57,7 +67,15 @@ function describe(ev: Event): { text: string; cls: string } {
   }
 }
 
-export default function EventFeed({ events }: { events: Event[] }) {
+export default function EventFeed({
+  events,
+  units,
+  map,
+}: {
+  events: Event[];
+  units: Unit[];
+  map: GameMap | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,11 +84,23 @@ export default function EventFeed({ events }: { events: Event[] }) {
     }
   }, [events.length]);
 
+  const resolver: Resolver = {
+    unitName: (id) => {
+      if (id == null) return '?';
+      return units.find((u) => u.id === id)?.name ?? `unit ${id}`;
+    },
+    placeName: (h) => {
+      if (!h) return '?';
+      const mh = map?.hexes.find((x) => x.hex.q === h.q && x.hex.r === h.r);
+      return mh?.name ?? `${h.q},${h.r}`;
+    },
+  };
+
   return (
     <div className="feed" ref={ref}>
       {events.length === 0 && <div className="empty">Awaiting events…</div>}
       {events.map((ev, i) => {
-        const d = describe(ev);
+        const d = describe(ev, resolver);
         return (
           <div className={`line ${d.cls}`} key={i}>
             <span className="tag">{ev.turn ? `T${ev.turn}` : '—'}</span>
