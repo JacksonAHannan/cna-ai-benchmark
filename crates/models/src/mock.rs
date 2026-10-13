@@ -193,6 +193,9 @@ fn best_move(
         if u.water == 0 {
             continue;
         }
+        if u.contact {
+            continue; // engaged units can only attack, not move
+        }
         let cur = u.hex?;
         let target = nearest_target(obs, cur, enemy);
 

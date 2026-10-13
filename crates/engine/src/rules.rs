@@ -13,12 +13,15 @@ use crate::unit::{Organization, SupplyStatus, UnitId, UnitType};
 const DETECTION_RANGE: i32 = 2;
 
 /// Differential CRT result (research-corrected; see docs/cna-rules.md §15).
-/// Percentage losses per side, plus whether the defender must retreat.
+/// Percentage losses per side, capture/Engaged effects, and retreat distance.
 #[derive(Debug)]
 struct CombatResult {
     attacker_loss_pct: u8,
     defender_loss_pct: u8,
     defender_retreat_hexes: u8,
+    attacker_captured: bool,
+    defender_captured: bool,
+    engaged: bool,
 }
 
 impl GameState {
@@ -168,6 +171,12 @@ impl GameState {
             return Err(ActionError::new(
                 ActionErrorKind::OutOfWater,
                 "unit has no water",
+            ));
+        }
+        if unit.contact {
+            return Err(ActionError::new(
+                ActionErrorKind::Engaged,
+                "unit is engaged, must attack to disengage",
             ));
         }
         Ok(())
@@ -384,11 +393,32 @@ impl GameState {
             self.retreat_unit(target, result.defender_retreat_hexes);
         }
 
+        // Engaged (§15.93): both sides remain in contact; retreat overrides.
+        // Otherwise attacking breaks any prior contact. Capture is surfaced in
+        // the result; the prisoner fraction needs the §15.89 table.
+        let engaged_now = result.engaged && result.defender_retreat_hexes == 0;
+        for id in [attacker, target] {
+            if let Some(u) = self.units.get_mut(&id) {
+                u.contact = engaged_now;
+            }
+        }
+
         // Attacker expends its attack.
         let au = self.units.get_mut(&attacker).unwrap();
         au.has_attacked = true;
         au.movement = au.movement.saturating_sub(5);
         au.ammo = au.ammo.saturating_sub(1);
+
+        let mut tags = String::new();
+        if result.attacker_captured {
+            tags.push_str(" attacker-captured");
+        }
+        if result.defender_captured {
+            tags.push_str(" defender-captured");
+        }
+        if engaged_now {
+            tags.push_str(" engaged");
+        }
 
         self.log.push(Event::Attack {
             turn: self.turn,
@@ -396,7 +426,7 @@ impl GameState {
             defender: target,
             odds_numerator: a_str,
             odds_denominator: d_str,
-            result: format!("diff {shift:+}"),
+            result: format!("diff {shift:+}{tags}"),
             attacker_losses: a_losses,
             defender_losses: d_losses,
         });
@@ -650,6 +680,9 @@ fn combat_result(rng: &mut Rng, attacker: u32, defender: u32, shift: i32) -> Com
         attacker_loss_pct: o.attacker_loss_pct,
         defender_loss_pct: o.defender_loss_pct,
         defender_retreat_hexes: o.defender_retreat,
+        attacker_captured: o.attacker_captured,
+        defender_captured: o.defender_captured,
+        engaged: o.engaged,
     }
 }
 

@@ -51,6 +51,7 @@ pub enum ActionErrorKind {
     AlreadyAttacked,
     CannotRetreat,
     EmptyPath,
+    Engaged,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

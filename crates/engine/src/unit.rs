@@ -103,6 +103,8 @@ pub struct Unit {
     pub organization: Organization,
     /// Adjusted morale, −3..=+3 (§15.6).
     pub morale: i8,
+    /// In contact with the enemy (Engaged, §15.93): cannot move, only attack.
+    pub contact: bool,
 }
 
 impl Unit {
@@ -155,6 +157,7 @@ impl Unit {
             has_attacked: false,
             organization,
             morale,
+            contact: false,
         }
     }
 
